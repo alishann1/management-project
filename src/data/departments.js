@@ -1,0 +1,58 @@
+const departments = [
+    {
+        id: 1,
+        name: "IT",
+        description: "Technology and software development",
+        employees: 12,
+        performance: 87,
+        projects: 4,
+        manager: "Ali Khan",
+    },
+    {
+        id: 2,
+        name: "Human Resources",
+        description: "Employee relations and organizational development",
+        employees: 8,
+        performance: 91,
+        projects: 2,
+        manager: "Sara Ahmed",
+    },
+    {
+        id: 3,
+        name: "Finance",
+        description: "Financial planning and accounting",
+        employees: 7,
+        performance: 84,
+        projects: 2,
+        manager: "Ahmed Shah",
+    },
+    {
+        id: 4,
+        name: "Marketing",
+        description: "Marketing, branding and communications",
+        employees: 9,
+        performance: 79,
+        projects: 2,
+        manager: "Fatima Ali",
+    },
+    {
+        id: 5,
+        name: "Operations",
+        description: "Daily operations and business processes",
+        employees: 7,
+        performance: 86,
+        projects: 1,
+        manager: "Ayesha Malik",
+    },
+    {
+        id: 6,
+        name: "Administration",
+        description: "Administrative and support services",
+        employees: 5,
+        performance: 82,
+        projects: 1,
+        manager: "Hassan Ali",
+    },
+];
+
+export default departments;
