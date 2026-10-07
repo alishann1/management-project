@@ -4,6 +4,7 @@ import employees from "../data/employees";
 import { useState } from "react";
 
 function Departments() {
+  const [deletingDepartment, setDeletingDepartment] = useState(null);
   const [editingDepartment, setEditingDepartment] = useState(null);
   const handleAddDepartment = (e) => {
     e.preventDefault();
@@ -177,19 +178,27 @@ function Departments() {
             </div>
 
             {/* View Department Button */}
-            <div className="mt-5 grid grid-cols-2 gap-3">
+            {/* Department Actions */}
+            <div className="mt-5 grid grid-cols-3 gap-3">
               <button
                 onClick={() => setSelectedDepartment(department)}
-                className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition cursor-pointer"
+                className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white text-center hover:bg-blue-700 transition cursor-pointer"
               >
-                View Department
+                View
               </button>
 
               <button
                 onClick={() => setEditingDepartment({ ...department })}
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 text-center hover:bg-slate-50 transition cursor-pointer"
               >
                 Edit
+              </button>
+
+              <button
+                onClick={() => setDeletingDepartment(department)}
+                className="w-full rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 text-center hover:bg-red-50 transition cursor-pointer"
+              >
+                Delete
               </button>
             </div>
           </div>
