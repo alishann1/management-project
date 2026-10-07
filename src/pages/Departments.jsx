@@ -4,6 +4,7 @@ import employees from "../data/employees";
 import { useState } from "react";
 
 function Departments() {
+  const [editingDepartment, setEditingDepartment] = useState(null);
   const handleAddDepartment = (e) => {
     e.preventDefault();
 
@@ -22,6 +23,18 @@ function Departments() {
       manager: "",
       projects: 0,
     });
+  };
+
+  const handleEditDepartment = (e) => {
+    e.preventDefault();
+
+    setDepartmentList(
+      departmentList.map((department) =>
+        department.id === editingDepartment.id ? editingDepartment : department,
+      ),
+    );
+
+    setEditingDepartment(null);
   };
   const [departmentList, setDepartmentList] = useState(departments);
 
@@ -164,12 +177,21 @@ function Departments() {
             </div>
 
             {/* View Department Button */}
-            <button
-              onClick={() => setSelectedDepartment(department)}
-              className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition cursor-pointer"
-            >
-              View Department
-            </button>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setSelectedDepartment(department)}
+                className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition cursor-pointer"
+              >
+                View Department
+              </button>
+
+              <button
+                onClick={() => setEditingDepartment({ ...department })}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+              >
+                Edit
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -412,6 +434,134 @@ function Departments() {
                   className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer"
                 >
                   Add Department
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingDepartment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-slate-200 pb-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">
+                  Edit Department
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Update department information
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEditingDepartment(null)}
+                className="text-2xl text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleEditDepartment} className="mt-5 space-y-4">
+              {/* Department Name */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Department Name
+                </label>
+
+                <input
+                  type="text"
+                  required
+                  value={editingDepartment.name}
+                  onChange={(e) =>
+                    setEditingDepartment({
+                      ...editingDepartment,
+                      name: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Description
+                </label>
+
+                <textarea
+                  required
+                  rows="3"
+                  value={editingDepartment.description}
+                  onChange={(e) =>
+                    setEditingDepartment({
+                      ...editingDepartment,
+                      description: e.target.value,
+                    })
+                  }
+                  className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                ></textarea>
+              </div>
+
+              {/* Manager */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Department Manager
+                </label>
+
+                <input
+                  type="text"
+                  required
+                  value={editingDepartment.manager}
+                  onChange={(e) =>
+                    setEditingDepartment({
+                      ...editingDepartment,
+                      manager: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              {/* Projects */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Active Projects
+                </label>
+
+                <input
+                  type="number"
+                  min="0"
+                  value={editingDepartment.projects}
+                  onChange={(e) =>
+                    setEditingDepartment({
+                      ...editingDepartment,
+                      projects: Number(e.target.value),
+                    })
+                  }
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingDepartment(null)}
+                  className="rounded-lg bg-slate-100 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200 cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>
