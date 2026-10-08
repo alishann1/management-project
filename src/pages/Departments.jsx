@@ -121,7 +121,7 @@ function Departments() {
                   {department.name}
                 </h2>
 
-                <p className="text-sm text-slate-500 mt-1 leading-5">
+                <p className="mt-0.5 min-h-12 text-sm leading-6 text-slate-500">
                   {department.description}
                 </p>
               </div>
