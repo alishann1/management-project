@@ -1,0 +1,108 @@
+const goals = [
+    {
+        id: 1,
+        title: "Improve Website Performance",
+        description:
+            "Optimize the company website to improve loading speed, usability and overall user experience.",
+        employee: "Ali Khan",
+        department: "IT",
+        category: "Performance",
+        target: 90,
+        progress: 75,
+        deadline: "2026-11-30",
+        status: "In Progress",
+    },
+    {
+        id: 2,
+        title: "Complete UI/UX Redesign",
+        description:
+            "Complete the redesign of key application interfaces with a focus on usability and modern design.",
+        employee: "Usman Khan",
+        department: "IT",
+        category: "Development",
+        target: 100,
+        progress: 60,
+        deadline: "2026-12-15",
+        status: "In Progress",
+    },
+    {
+        id: 3,
+        title: "Recruitment Target",
+        description:
+            "Successfully recruit qualified candidates for the organization's upcoming staffing requirements.",
+        employee: "Sara Ahmed",
+        department: "Human Resources",
+        category: "Recruitment",
+        target: 10,
+        progress: 6,
+        deadline: "2026-12-31",
+        status: "In Progress",
+    },
+    {
+        id: 4,
+        title: "Annual Budget Preparation",
+        description:
+            "Prepare and finalize the organization's annual financial plan and budget.",
+        employee: "Ahmed Shah",
+        department: "Finance",
+        category: "Financial",
+        target: 100,
+        progress: 40,
+        deadline: "2026-12-20",
+        status: "In Progress",
+    },
+    {
+        id: 5,
+        title: "Increase Brand Awareness",
+        description:
+            "Improve brand visibility through an effective marketing campaign and digital communication.",
+        employee: "Fatima Ali",
+        department: "Marketing",
+        category: "Marketing",
+        target: 100,
+        progress: 70,
+        deadline: "2026-11-15",
+        status: "In Progress",
+    },
+    {
+        id: 6,
+        title: "Improve Office Efficiency",
+        description:
+            "Identify and implement improvements to daily office processes to increase operational efficiency.",
+        employee: "Ayesha Malik",
+        department: "Operations",
+        category: "Operations",
+        target: 100,
+        progress: 85,
+        deadline: "2026-11-30",
+        status: "In Progress",
+    },
+    {
+        id: 7,
+        title: "Employee Dashboard Testing",
+        description:
+            "Complete testing of the employee dashboard and verify all major functions.",
+        employee: "Hassan Ali",
+        department: "IT",
+        category: "Development",
+        target: 100,
+        progress: 100,
+        deadline: "2026-10-31",
+        status: "Completed",
+    },
+    {
+        id: 8,
+        title: "Improve HR Documentation",
+        description:
+            "Organize and improve employee documentation and HR record management processes.",
+        employee: "Maryam Shah",
+        department: "Human Resources",
+        category: "Administration",
+        target: 100,
+        progress: 50,
+        deadline: "2026-12-10",
+        status: "In Progress",
+    },
+];
+
+export default goals;

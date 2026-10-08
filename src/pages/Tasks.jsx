@@ -7,6 +7,7 @@ function Tasks() {
   const [viewingTask, setViewingTask] = useState(null);
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [deletingTask, setDeletingTask] = useState(null);
 
   const [newTask, setNewTask] = useState({
     title: "",
@@ -77,6 +78,12 @@ function Tasks() {
     );
 
     setEditingTask(null);
+  };
+
+  const handleDeleteTask = () => {
+    setTaskList(taskList.filter((task) => task.id !== deletingTask.id));
+
+    setDeletingTask(null);
   };
 
   return (
@@ -199,6 +206,14 @@ function Tasks() {
               className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer text-center"
             >
               Edit Task
+            </button>
+
+            {/* Delete Task Button */}
+            <button
+              onClick={() => setDeletingTask(task)}
+              className="mt-2 w-full rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 cursor-pointer text-center"
+            >
+              Delete Task
             </button>
           </div>
         ))}
@@ -763,6 +778,64 @@ function Tasks() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Task Confirmation Modal */}
+      {deletingTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">
+                  Delete Task
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Confirm task deletion
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setDeletingTask(null)}
+                className="text-2xl leading-none text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Confirmation Message */}
+            <div className="mt-6">
+              <p className="text-sm leading-6 text-slate-600">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-slate-800">
+                  {deletingTask.title}
+                </span>
+                ? This action cannot be undone.
+              </p>
+            </div>
+
+            {/* Confirmation Buttons */}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeletingTask(null)}
+                className="rounded-lg bg-slate-100 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeleteTask}
+                className="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 cursor-pointer"
+              >
+                Delete Task
+              </button>
+            </div>
           </div>
         </div>
       )}
