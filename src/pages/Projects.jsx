@@ -73,14 +73,6 @@ function Projects() {
             : "Planning",
     };
 
-    const handleDeleteProject = () => {
-      setProjectList(
-        projectList.filter((project) => project.id !== deletingProject.id),
-      );
-
-      setDeletingProject(null);
-    };
-
     setProjectList(
       projectList.map((project) =>
         project.id === editingProject.id ? updatedProject : project,
@@ -88,6 +80,14 @@ function Projects() {
     );
 
     setEditingProject(null);
+  };
+
+  const handleDeleteProject = () => {
+    setProjectList(
+      projectList.filter((project) => project.id !== deletingProject.id),
+    );
+
+    setDeletingProject(null);
   };
 
   return (
