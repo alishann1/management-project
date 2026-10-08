@@ -26,6 +26,16 @@ function Departments() {
     });
   };
 
+  const handleDeleteDepartment = () => {
+    setDepartmentList(
+      departmentList.filter(
+        (department) => department.id !== deletingDepartment.id,
+      ),
+    );
+
+    setDeletingDepartment(null);
+  };
+
   const handleEditDepartment = (e) => {
     e.preventDefault();
 
@@ -196,7 +206,7 @@ function Departments() {
 
               <button
                 onClick={() => setDeletingDepartment(department)}
-                className="w-full rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 text-center hover:bg-red-50 transition cursor-pointer"
+                className="w-full rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition cursor-pointer text-center"
               >
                 Delete
               </button>
@@ -574,6 +584,62 @@ function Departments() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deletingDepartment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">
+                  Delete Department
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  This action cannot be undone.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setDeletingDepartment(null)}
+                className="text-2xl text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
+              <p className="text-sm text-red-700">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold">{deletingDepartment.name}</span>
+                ?
+              </p>
+
+              <p className="mt-2 text-xs text-red-600">
+                The department will be removed from the department list.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeletingDepartment(null)}
+                className="rounded-lg bg-slate-100 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeleteDepartment}
+                className="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 cursor-pointer"
+              >
+                Delete Department
+              </button>
+            </div>
           </div>
         </div>
       )}
