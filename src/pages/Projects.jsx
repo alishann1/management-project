@@ -177,33 +177,35 @@ function Projects() {
                   {project.progress}%
                 </span>
               </div>
-
               <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                 <div
                   className="h-full rounded-full bg-blue-600 transition-all"
                   style={{ width: `${project.progress}%` }}
                 ></div>
               </div>
+              {/* Project Actions */}
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => setSelectedProject(project)}
+                  className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white text-center hover:bg-blue-700 transition cursor-pointer"
+                >
+                  View
+                </button>
 
-              <button
-                onClick={() => setSelectedProject(project)}
-                className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition cursor-pointer text-center"
-              >
-                View Project
-              </button>
+                <button
+                  onClick={() => setEditingProject({ ...project })}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 text-center hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Edit
+                </button>
 
-              <button
-                onClick={() => setEditingProject({ ...project })}
-                className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer text-center"
-              >
-                Edit Project
-              </button>
-              <button
-                onClick={() => setDeletingProject(project)}
-                className="mt-2 w-full rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-100 transition cursor-pointer text-center"
-              >
-                Delete Project
-              </button>
+                <button
+                  onClick={() => setDeletingProject(project)}
+                  className="w-full rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 text-center hover:bg-red-50 transition cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         ))}

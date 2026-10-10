@@ -537,7 +537,8 @@ function Employees() {
                     onChange={(e) =>
                       setNewEmployee({
                         ...newEmployee,
-                        performance: Number(e.target.value),
+                        performance:
+                          e.target.value === "" ? "" : Number(e.target.value),
                       })
                     }
                     className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"

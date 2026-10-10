@@ -355,39 +355,39 @@ function Goals() {
                 ></div>{" "}
               </div>{" "}
             </div>{" "}
-            {/* View Goal Button — same structure as Task card */}{" "}
-            <button
-              type="button"
-              onClick={() => setViewingGoal(goal)}
-              className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 cursor-pointer text-center"
-            >
-              {" "}
-              View Goal{" "}
-            </button>{" "}
-            {/* Edit Goal Button — same structure as Task card */}{" "}
-            <button
-              type="button"
-              onClick={() =>
-                setEditingGoal({
-                  ...goal,
-                  target: String(goal.target),
-                  progress: String(goal.progress),
-                })
-              }
-              className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer text-center"
-            >
-              {" "}
-              Edit Goal{" "}
-            </button>{" "}
-            {/* Delete Goal Button — same structure as Task card */}{" "}
-            <button
-              type="button"
-              onClick={() => setDeletingGoal(goal)}
-              className="mt-2 w-full rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 cursor-pointer text-center"
-            >
-              {" "}
-              Delete Goal{" "}
-            </button>{" "}
+            {/* View Goal Button — same structure as Task card */}
+            {/* Goal Actions */}
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setViewingGoal(goal)}
+                className="w-full rounded-lg bg-blue-600 px-3 py-2.5 text-center text-sm font-medium text-white transition hover:bg-blue-700 cursor-pointer"
+              >
+                View
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setEditingGoal({
+                    ...goal,
+                    target: String(goal.target),
+                    progress: String(goal.progress),
+                  })
+                }
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+              >
+                Edit
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDeletingGoal(goal)}
+                className="w-full rounded-lg border border-red-200 bg-white px-3 py-2.5 text-center text-sm font-medium text-red-600 transition hover:bg-red-50 cursor-pointer"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         ))}{" "}
       </div>{" "}

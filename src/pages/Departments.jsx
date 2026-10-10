@@ -431,7 +431,8 @@ function Departments() {
                   onChange={(e) =>
                     setNewDepartment({
                       ...newDepartment,
-                      projects: Number(e.target.value),
+                      projects:
+                        e.target.value === "" ? "" : Number(e.target.value),
                     })
                   }
                   className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"

@@ -124,7 +124,6 @@ function Tasks() {
                 {task.description}
               </p>
             </div>
-
             {/* Status and Priority */}
             <div className="mt-4 flex items-center gap-2">
               <span
@@ -153,7 +152,6 @@ function Tasks() {
                 {task.priority}
               </span>
             </div>
-
             {/* Task Information */}
             <div className="mt-5 space-y-3">
               <div className="flex items-center gap-3 text-sm text-slate-600">
@@ -171,7 +169,6 @@ function Tasks() {
                 <span>Due: {task.dueDate}</span>
               </div>
             </div>
-
             {/* Progress */}
             <div className="mt-6">
               <div className="mb-2 flex items-center justify-between">
@@ -191,30 +188,32 @@ function Tasks() {
                 ></div>
               </div>
             </div>
+            {/* Task Actions */}
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setViewingTask(task)}
+                className="w-full rounded-lg bg-blue-600 px-3 py-2.5 text-center text-sm font-medium text-white transition hover:bg-blue-700 cursor-pointer"
+              >
+                View
+              </button>
 
-            {/* View Task Button */}
-            <button
-              onClick={() => setViewingTask(task)}
-              className="mt-5 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 cursor-pointer text-center"
-            >
-              View Task
-            </button>
+              <button
+                type="button"
+                onClick={() => setEditingTask({ ...task })}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer"
+              >
+                Edit
+              </button>
 
-            {/* Edit Task Button */}
-            <button
-              onClick={() => setEditingTask({ ...task })}
-              className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer text-center"
-            >
-              Edit Task
-            </button>
-
-            {/* Delete Task Button */}
-            <button
-              onClick={() => setDeletingTask(task)}
-              className="mt-2 w-full rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-100 cursor-pointer text-center"
-            >
-              Delete Task
-            </button>
+              <button
+                type="button"
+                onClick={() => setDeletingTask(task)}
+                className="w-full rounded-lg border border-red-200 bg-white px-3 py-2.5 text-center text-sm font-medium text-red-600 transition hover:bg-red-50 cursor-pointer"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         ))}
       </div>
