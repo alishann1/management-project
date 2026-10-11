@@ -8,13 +8,15 @@ import {
   CheckCircle,
   Clock,
 } from "lucide-react";
-import { useState } from "react";
-import employees from "../data/employees";
+import { useEffect, useState } from "react";
+import { getEmployees } from "../services/api";
 
 function Employees() {
   const [deletingEmployee, setDeletingEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
-  const [employeeList, setEmployeeList] = useState(employees);
+  const [employeeList, setEmployeeList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("All Departments");
   const [status, setStatus] = useState("All Status");
@@ -30,6 +32,27 @@ function Employees() {
     status: "Active",
     performance: 0,
   });
+
+  useEffect(() => {
+    const loadEmployees = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const data = await getEmployees();
+        setEmployeeList(data);
+      } catch (err) {
+        setError(
+          "Could not load employees. Make sure the backend server is running.",
+        );
+        console.error("Employee loading error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEmployees();
+  }, []);
 
   const handleAddEmployee = (e) => {
     e.preventDefault();
@@ -184,67 +207,93 @@ function Employees() {
           </thead>
 
           <tbody>
-            {filteredEmployees.map((employee) => (
-              <tr
-                key={employee.id}
-                className="border-b border-slate-100 hover:bg-slate-50"
-              >
-                <td className="px-6 py-4">
-                  <div>
-                    <p className="font-medium text-slate-800">
-                      {employee.name}
-                    </p>
-
-                    <p className="text-xs text-slate-500 mt-1">
-                      {employee.email}
-                    </p>
-                  </div>
-                </td>
-
-                <td className="px-6 py-4 text-sm text-slate-600">
-                  {employee.department}
-                </td>
-
-                <td className="px-6 py-4 text-sm text-slate-600">
-                  {employee.position}
-                </td>
-
-                <td className="px-6 py-4">
-                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                    {employee.status}
-                  </span>
-                </td>
-
-                <td className="px-6 py-4 text-sm font-medium text-slate-700">
-                  {employee.performance}%
-                </td>
-
-                <td className="px-6 py-4 text-right">
-                  <div className="flex items-center justify-end gap-3">
-                    <button
-                      onClick={() => setSelectedEmployee(employee)}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium cursor-pointer"
-                    >
-                      View
-                    </button>
-
-                    <button
-                      onClick={() => setEditingEmployee({ ...employee })}
-                      className="text-slate-600 hover:text-slate-900 text-sm font-medium cursor-pointer"
-                    >
-                      Edit
-                    </button>
-
-                    <button
-                      onClick={() => setDeletingEmployee(employee)}
-                      className="text-red-600 hover:text-red-800 text-sm font-medium cursor-pointer"
-                    >
-                      Delete
-                    </button>
-                  </div>
+            {loading ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="px-6 py-10 text-center text-slate-500"
+                >
+                  Loading employees...
                 </td>
               </tr>
-            ))}
+            ) : error ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-10 text-center text-red-600">
+                  {error}
+                </td>
+              </tr>
+            ) : filteredEmployees.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="px-6 py-10 text-center text-slate-500"
+                >
+                  No employees found.
+                </td>
+              </tr>
+            ) : (
+              filteredEmployees.map((employee) => (
+                <tr
+                  key={employee.id}
+                  className="border-b border-slate-100 hover:bg-slate-50"
+                >
+                  <td className="px-6 py-4">
+                    <div>
+                      <p className="font-medium text-slate-800">
+                        {employee.name}
+                      </p>
+
+                      <p className="text-xs text-slate-500 mt-1">
+                        {employee.email}
+                      </p>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4 text-sm text-slate-600">
+                    {employee.department}
+                  </td>
+
+                  <td className="px-6 py-4 text-sm text-slate-600">
+                    {employee.position}
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      {employee.status}
+                    </span>
+                  </td>
+
+                  <td className="px-6 py-4 text-sm font-medium text-slate-700">
+                    {employee.performance}%
+                  </td>
+
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => setSelectedEmployee(employee)}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium cursor-pointer"
+                      >
+                        View
+                      </button>
+
+                      <button
+                        onClick={() => setEditingEmployee({ ...employee })}
+                        className="text-slate-600 hover:text-slate-900 text-sm font-medium cursor-pointer"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        onClick={() => setDeletingEmployee(employee)}
+                        className="text-red-600 hover:text-red-800 text-sm font-medium cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
