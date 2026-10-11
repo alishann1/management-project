@@ -1,16 +1,35 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { LockKeyhole, Mail, Eye, EyeOff, Building2 } from "lucide-react";
+import { loginUser } from "../services/api";
 
 function Login() {
+  const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Backend authentication will be connected in the next step.
-    console.log("Login form submitted");
+    setError("");
+    setLoading(true);
+
+    try {
+      const result = await loginUser(email, password);
+
+      sessionStorage.setItem("smartmanager_token", result.token);
+      sessionStorage.setItem("smartmanager_user", JSON.stringify(result.user));
+
+      navigate("/");
+    } catch (err) {
+      setError(err.message || "Unable to sign in. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -99,12 +118,22 @@ function Login() {
               </div>
             </div>
 
+            {error && (
+              <div
+                role="alert"
+                className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+              >
+                {error}
+              </div>
+            )}
+
             {/* Submit */}
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg py-3 transition cursor-pointer"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium rounded-lg py-3 transition cursor-pointer"
             >
-              Sign In
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 

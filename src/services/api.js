@@ -34,4 +34,23 @@ export async function getEmployees() {
         status: employee.status,
         performance: employee.performance,
     }));
+
+}
+
+export async function loginUser(email, password) {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Login failed. Please try again.");
+    }
+
+    return result;
 }
