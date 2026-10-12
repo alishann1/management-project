@@ -1,5 +1,11 @@
-
 const API_BASE_URL = "http://localhost:5000";
+function getAuthHeaders() {
+    const token = sessionStorage.getItem("smartmanager_token");
+
+    return token
+        ? { Authorization: `Bearer ${token}` }
+        : {};
+}
 
 export async function checkBackendHealth() {
     const response = await fetch(`${API_BASE_URL}/api/health`);
@@ -12,7 +18,9 @@ export async function checkBackendHealth() {
 }
 
 export async function getEmployees() {
-    const response = await fetch(`${API_BASE_URL}/api/employees`);
+    const response = await fetch(`${API_BASE_URL}/api/employees`, {
+        headers: getAuthHeaders(),
+    });
 
     if (!response.ok) {
         throw new Error(`Failed to fetch employees: ${response.status}`);

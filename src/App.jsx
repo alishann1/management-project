@@ -13,27 +13,30 @@ import Leave from "./pages/Leave";
 import Performance from "./pages/Performance";
 import Reports from "./pages/Reports";
 import Login from "./pages/Login";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Main Application */}
-        <Route element={<DashboardLayout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/employees" element={<Employees />} />
-          <Route path="/departments" element={<Departments />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/goals" element={<Goals />} />
-          <Route path="/attendance" element={<Attendance />} />
-          <Route path="/leave" element={<Leave />} />
-          <Route path="/performance" element={<Performance />} />
-          <Route path="/reports" element={<Reports />} />
-        </Route>
-
-        {/* Login stays outside the dashboard layout */}
+        {/* Login stays outside the protected dashboard */}
         <Route path="/login" element={<Login />} />
+
+        {/* Protected application pages */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<DashboardLayout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/employees" element={<Employees />} />
+            <Route path="/departments" element={<Departments />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/goals" element={<Goals />} />
+            <Route path="/attendance" element={<Attendance />} />
+            <Route path="/leave" element={<Leave />} />
+            <Route path="/performance" element={<Performance />} />
+            <Route path="/reports" element={<Reports />} />
+          </Route>
+        </Route>
       </Routes>
     </BrowserRouter>
   );
