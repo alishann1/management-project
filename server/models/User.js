@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
@@ -31,6 +30,36 @@ const userSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "Employee",
             default: null,
+        },
+
+        // Account access controls
+        isAuthorized: {
+            type: Boolean,
+            default: false,
+        },
+        isEmailVerified: {
+            type: Boolean,
+            default: false,
+        },
+
+        // Temporary email-verification data
+        emailVerificationTokenHash: {
+            type: String,
+            select: false,
+        },
+        emailVerificationExpires: {
+            type: Date,
+            select: false,
+        },
+
+        // Temporary password-setup data
+        passwordSetupTokenHash: {
+            type: String,
+            select: false,
+        },
+        passwordSetupExpires: {
+            type: Date,
+            select: false,
         },
     },
     {

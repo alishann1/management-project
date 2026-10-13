@@ -1,4 +1,3 @@
-
 import express from "express";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
@@ -32,6 +31,20 @@ router.post("/login", async (req, res) => {
             return res.status(401).json({
                 success: false,
                 message: "Invalid email or password.",
+            });
+        }
+
+        if (!user.isAuthorized) {
+            return res.status(403).json({
+                success: false,
+                message: "Your account has not been authorized by a Manager.",
+            });
+        }
+
+        if (!user.isEmailVerified) {
+            return res.status(403).json({
+                success: false,
+                message: "Please verify your email address before signing in.",
             });
         }
 

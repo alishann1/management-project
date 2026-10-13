@@ -1,9 +1,11 @@
 import { CalendarDays, User, FolderKanban, Plus } from "lucide-react";
-import { useState } from "react";
-import tasks from "../data/tasks";
+import { useEffect, useState } from "react";
+import { createTask, getTasks } from "../services/api";
 
 function Tasks() {
-  const [taskList, setTaskList] = useState(tasks);
+  const [taskList, setTaskList] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(true);
+  const [taskError, setTaskError] = useState("");
   const [viewingTask, setViewingTask] = useState(null);
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -20,6 +22,24 @@ function Tasks() {
     progress: 0,
   });
 
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        setLoadingTasks(true);
+        setTaskError("");
+
+        const data = await getTasks();
+        setTaskList(data);
+      } catch (error) {
+        setTaskError(error.message || "Failed to load tasks.");
+      } finally {
+        setLoadingTasks(false);
+      }
+    };
+
+    loadTasks();
+  }, []);
+
   const getStatusFromProgress = (progress) => {
     const value = Number(progress);
 
@@ -34,32 +54,49 @@ function Tasks() {
     return "In Progress";
   };
 
-  const handleAddTask = (e) => {
+  const handleAddTask = async (e) => {
     e.preventDefault();
 
-    const progress = Number(newTask.progress);
+    try {
+      const progress = Number(newTask.progress);
 
-    const task = {
-      id: Date.now(),
-      ...newTask,
-      progress,
-      status: getStatusFromProgress(progress),
-    };
+      const taskData = {
+        ...newTask,
+        progress,
+      };
 
-    setTaskList([...taskList, task]);
+      const createdTask = await createTask(taskData);
 
-    setNewTask({
-      title: "",
-      description: "",
-      project: "",
-      department: "",
-      assignedTo: "",
-      priority: "Medium",
-      dueDate: "",
-      progress: 0,
-    });
+      const formattedTask = {
+        id: createdTask._id,
+        title: createdTask.title,
+        description: createdTask.description,
+        project: createdTask.project,
+        department: createdTask.department,
+        assignedTo: createdTask.assignedTo?.name || newTask.assignedTo,
+        priority: createdTask.priority,
+        status: createdTask.status,
+        dueDate: createdTask.dueDate?.split("T")[0] || "",
+        progress: createdTask.progress,
+      };
 
-    setShowAddTask(false);
+      setTaskList((previousTasks) => [formattedTask, ...previousTasks]);
+
+      setNewTask({
+        title: "",
+        description: "",
+        project: "",
+        department: "",
+        assignedTo: "",
+        priority: "Medium",
+        dueDate: "",
+        progress: 0,
+      });
+
+      setShowAddTask(false);
+    } catch (error) {
+      alert(error.message || "Failed to create task.");
+    }
   };
 
   const handleEditTask = (e) => {
@@ -111,6 +148,21 @@ function Tasks() {
 
       {/* Task Cards */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {loadingTasks && (
+          <p className="py-8 text-center text-sm text-slate-500">
+            Loading tasks...
+          </p>
+        )}
+
+        {!loadingTasks && taskError && (
+          <p className="py-8 text-center text-sm text-red-600">{taskError}</p>
+        )}
+
+        {!loadingTasks && !taskError && taskList.length === 0 && (
+          <p className="py-8 text-center text-sm text-slate-500">
+            No tasks found. Add a task to get started.
+          </p>
+        )}
         {taskList.map((task) => (
           <div
             key={task.id}

@@ -45,6 +45,112 @@ export async function getEmployees() {
 
 }
 
+
+export async function getMyTasks() {
+    const response = await fetch(`${API_BASE_URL}/api/tasks/my-tasks`, {
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to fetch your tasks");
+    }
+
+    return result.data.map((task) => ({
+        id: task._id,
+        title: task.title,
+        description: task.description,
+        project: task.project,
+        department: task.department,
+        assignedTo: task.assignedTo,
+        priority: task.priority,
+        status: task.status,
+        dueDate: task.dueDate?.split("T")[0] || "",
+        progress: task.progress,
+    }));
+}
+
+
+export async function getTasks() {
+    const response = await fetch(`${API_BASE_URL}/api/tasks`, {
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to fetch tasks");
+    }
+
+    return result.data.map((task) => ({
+        id: task._id,
+        title: task.title,
+        description: task.description,
+        project: task.project,
+        department: task.department,
+        assignedTo: task.assignedTo?.name || "",
+        priority: task.priority,
+        status: task.status,
+        dueDate: task.dueDate?.split("T")[0] || "",
+        progress: task.progress,
+    }));
+}
+
+export async function createTask(taskData) {
+    const response = await fetch(`${API_BASE_URL}/api/tasks`, {
+        method: "POST",
+        headers: {
+            ...getAuthHeaders(),
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(taskData),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to create task");
+    }
+
+    return result.data;
+}
+
+export async function updateTask(taskId, taskData) {
+    const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: {
+            ...getAuthHeaders(),
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(taskData),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update task");
+    }
+
+    return result.data;
+}
+
+export async function deleteTask(taskId) {
+    const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to delete task");
+    }
+
+    return result;
+}
+
+
 export async function loginUser(email, password) {
     const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",

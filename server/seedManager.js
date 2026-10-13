@@ -1,4 +1,3 @@
-
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { connectDB } from "./config/db.js";
@@ -27,7 +26,19 @@ async function seedManager() {
         const existingUser = await User.findOne({ email });
 
         if (existingUser) {
-            console.log("An account with this email already exists. No changes made.");
+            if (existingUser.role !== "Manager") {
+                throw new Error(
+                    "The configured Manager email belongs to a non-Manager account.",
+                );
+            }
+
+            existingUser.isAuthorized = true;
+            existingUser.isEmailVerified = true;
+            await existingUser.save();
+
+            console.log(
+                `\x1b[32mExisting Manager account authorized and verified: ${existingUser.email}\x1b[0m`,
+            );
             return;
         }
 
@@ -36,9 +47,13 @@ async function seedManager() {
             email,
             password,
             role: "Manager",
+            isAuthorized: true,
+            isEmailVerified: true,
         });
 
-        console.log(`Manager account created successfully for ${manager.email}.`);
+        console.log(
+            `\x1b[32mManager account created and verified: ${manager.email}\x1b[0m`,
+        );
     } catch (error) {
         console.error("Manager setup failed:", error.message);
         process.exitCode = 1;

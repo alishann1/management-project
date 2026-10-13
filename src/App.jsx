@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import DashboardLayout from "./layouts/DashboardLayout";
-
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import Departments from "./pages/Departments";
@@ -14,16 +13,21 @@ import Performance from "./pages/Performance";
 import Reports from "./pages/Reports";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
+import VerifyEmail from "./pages/VerifyEmail";
+import SetPassword from "./pages/SetPassword";
+import EmployeeDashboard from "./pages/EmployeeDashboard";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Login stays outside the protected dashboard */}
+        {/* Public pages */}
         <Route path="/login" element={<Login />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/set-password" element={<SetPassword />} />
 
-        {/* Protected application pages */}
-        <Route element={<ProtectedRoute />}>
+        {/* Manager-only pages */}
+        <Route element={<ProtectedRoute allowedRoles={["Manager"]} />}>
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/employees" element={<Employees />} />
@@ -36,6 +40,11 @@ function App() {
             <Route path="/performance" element={<Performance />} />
             <Route path="/reports" element={<Reports />} />
           </Route>
+        </Route>
+
+        {/* Employee-only pages */}
+        <Route element={<ProtectedRoute allowedRoles={["Employee"]} />}>
+          <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
         </Route>
       </Routes>
     </BrowserRouter>

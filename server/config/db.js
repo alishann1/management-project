@@ -10,7 +10,7 @@ export async function connectDB() {
         );
 
         console.log(
-            `MongoDB connected successfully: ${connection.connection.host}`
+            `\x1b[32mMongoDB connected successfully: ${connection.connection.host}\x1b[0m`
         );
     } catch (error) {
         console.error("MongoDB connection failed:", error.message);
