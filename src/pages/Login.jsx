@@ -24,7 +24,7 @@ function Login() {
       sessionStorage.setItem("smartmanager_token", result.token);
       sessionStorage.setItem("smartmanager_user", JSON.stringify(result.user));
 
-      navigate("/");
+      navigate("/", { replace: true });
     } catch (err) {
       setError(err.message || "Unable to sign in. Please try again.");
     } finally {

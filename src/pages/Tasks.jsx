@@ -1,6 +1,12 @@
-import { CalendarDays, User, FolderKanban, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
-import { createTask, getTasks } from "../services/api";
+import {
+  CalendarDays,
+  User,
+  FolderKanban,
+  Plus,
+  LoaderCircle,
+} from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { createTask, getTasks, updateTask, deleteTask } from "../services/api";
 
 function Tasks() {
   const [taskList, setTaskList] = useState([]);
@@ -10,6 +16,12 @@ function Tasks() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [deletingTask, setDeletingTask] = useState(null);
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const isSubmittingTask = useRef(false);
+  const [isSavingChanges, setIsSavingChanges] = useState(false);
+  const isSavingTask = useRef(false);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
+  const isDeletingTaskRef = useRef(false);
 
   const [newTask, setNewTask] = useState({
     title: "",
@@ -57,6 +69,15 @@ function Tasks() {
   const handleAddTask = async (e) => {
     e.preventDefault();
 
+    if (isSubmittingTask.current) return;
+
+    isSubmittingTask.current = true;
+    setIsAddingTask(true);
+    // Prevent duplicate submissions while a request is running.
+    if (isAddingTask) return;
+
+    setIsAddingTask(true);
+
     try {
       const progress = Number(newTask.progress);
 
@@ -96,31 +117,84 @@ function Tasks() {
       setShowAddTask(false);
     } catch (error) {
       alert(error.message || "Failed to create task.");
+    } finally {
+      isSubmittingTask.current = false;
+      setIsAddingTask(false);
     }
   };
 
-  const handleEditTask = (e) => {
+  const handleEditTask = async (e) => {
     e.preventDefault();
 
-    const progress = Number(editingTask.progress);
+    if (isSavingTask.current) return;
 
-    const updatedTask = {
-      ...editingTask,
-      progress,
-      status: getStatusFromProgress(progress),
-    };
+    isSavingTask.current = true;
+    setIsSavingChanges(true);
 
-    setTaskList(
-      taskList.map((task) => (task.id === editingTask.id ? updatedTask : task)),
-    );
+    try {
+      const progress = Number(editingTask.progress);
 
-    setEditingTask(null);
+      const taskData = {
+        title: editingTask.title,
+        description: editingTask.description,
+        project: editingTask.project,
+        department: editingTask.department,
+        assignedTo: editingTask.assignedTo,
+        priority: editingTask.priority,
+        dueDate: editingTask.dueDate,
+        progress,
+      };
+
+      const updatedTask = await updateTask(editingTask.id, taskData);
+
+      const formattedTask = {
+        id: updatedTask._id,
+        title: updatedTask.title,
+        description: updatedTask.description,
+        project: updatedTask.project,
+        department: updatedTask.department,
+        assignedTo: updatedTask.assignedTo?.name || editingTask.assignedTo,
+        priority: updatedTask.priority,
+        status: updatedTask.status,
+        dueDate: updatedTask.dueDate?.split("T")[0] || "",
+        progress: updatedTask.progress,
+      };
+
+      setTaskList((previousTasks) =>
+        previousTasks.map((task) =>
+          task.id === editingTask.id ? formattedTask : task,
+        ),
+      );
+
+      setEditingTask(null);
+    } catch (error) {
+      alert(error.message || "Failed to update task.");
+    } finally {
+      isSavingTask.current = false;
+      setIsSavingChanges(false);
+    }
   };
 
-  const handleDeleteTask = () => {
-    setTaskList(taskList.filter((task) => task.id !== deletingTask.id));
+  const handleDeleteTask = async () => {
+    if (isDeletingTaskRef.current || !deletingTask) return;
 
-    setDeletingTask(null);
+    isDeletingTaskRef.current = true;
+    setIsDeletingTask(true);
+
+    try {
+      await deleteTask(deletingTask.id);
+
+      setTaskList((previousTasks) =>
+        previousTasks.filter((task) => task.id !== deletingTask.id),
+      );
+
+      setDeletingTask(null);
+    } catch (error) {
+      alert(error.message || "Failed to delete task.");
+    } finally {
+      isDeletingTaskRef.current = false;
+      setIsDeletingTask(false);
+    }
   };
 
   return (
@@ -601,17 +675,26 @@ function Tasks() {
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
+                  disabled={isAddingTask}
                   onClick={() => setShowAddTask(false)}
-                  className="rounded-lg bg-slate-100 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200 cursor-pointer"
+                  className="rounded-lg bg-slate-100 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Cancel
                 </button>
 
                 <button
                   type="submit"
-                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer"
+                  disabled={isAddingTask}
+                  className="inline-flex min-w-32 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  Add Task
+                  {isAddingTask ? (
+                    <>
+                      <LoaderCircle size={18} className="animate-spin" />
+                      Adding Task...
+                    </>
+                  ) : (
+                    "Add Task"
+                  )}
                 </button>
               </div>
             </form>
@@ -814,18 +897,18 @@ function Tasks() {
               {/* Buttons */}
               <div className="flex justify-end gap-3 pt-2">
                 <button
-                  type="button"
-                  onClick={() => setEditingTask(null)}
-                  className="rounded-lg bg-slate-100 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-200 cursor-pointer"
-                >
-                  Cancel
-                </button>
-
-                <button
                   type="submit"
-                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer"
+                  disabled={isSavingChanges}
+                  className="inline-flex min-w-36 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  Save Changes
+                  {isSavingChanges ? (
+                    <>
+                      <LoaderCircle size={18} className="animate-spin" />
+                      Saving Changes...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
                 </button>
               </div>
             </form>
@@ -882,9 +965,17 @@ function Tasks() {
               <button
                 type="button"
                 onClick={handleDeleteTask}
-                className="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 cursor-pointer"
+                disabled={isDeletingTask}
+                className="inline-flex min-w-28 items-center justify-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Delete Task
+                {isDeletingTask ? (
+                  <>
+                    <LoaderCircle size={18} className="animate-spin" />
+                    Deleting Task...
+                  </>
+                ) : (
+                  "Delete"
+                )}
               </button>
             </div>
           </div>

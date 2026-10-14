@@ -16,6 +16,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import VerifyEmail from "./pages/VerifyEmail";
 import SetPassword from "./pages/SetPassword";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
+import MyTasks from "./pages/MyTasks";
 
 function App() {
   return (
@@ -44,7 +45,10 @@ function App() {
 
         {/* Employee-only pages */}
         <Route element={<ProtectedRoute allowedRoles={["Employee"]} />}>
-          <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
+          <Route element={<DashboardLayout />}>
+            <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
+            <Route path="/my-tasks" element={<MyTasks />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>

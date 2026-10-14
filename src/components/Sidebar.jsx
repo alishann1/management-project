@@ -12,62 +12,76 @@ import {
   BarChart3,
 } from "lucide-react";
 
-function Sidebar() {
-  const menuItems = [
+function Sidebar({ role }) {
+  const isEmployee = role === "Employee";
+
+  const managerMenuItems = [
+    { name: "Dashboard", path: "/", icon: LayoutDashboard },
+    { name: "Employees", path: "/employees", icon: Users },
+    { name: "Departments", path: "/departments", icon: Building2 },
+    { name: "Projects", path: "/projects", icon: FolderKanban },
+    { name: "Tasks", path: "/tasks", icon: ListTodo },
+    { name: "Goals", path: "/goals", icon: Target },
+    { name: "Attendance", path: "/attendance", icon: CalendarCheck },
+    { name: "Leave", path: "/leave", icon: CalendarDays },
+    { name: "Performance", path: "/performance", icon: Award },
+    { name: "Reports", path: "/reports", icon: BarChart3 },
+  ];
+
+  const employeeMenuItems = [
     {
       name: "Dashboard",
-      path: "/",
+      path: "/employee-dashboard",
       icon: LayoutDashboard,
     },
     {
-      name: "Employees",
-      path: "/employees",
-      icon: Users,
-    },
-    {
-      name: "Departments",
-      path: "/departments",
-      icon: Building2,
-    },
-    {
-      name: "Projects",
-      path: "/projects",
-      icon: FolderKanban,
-    },
-    {
-      name: "Tasks",
-      path: "/tasks",
+      name: "My Tasks",
+      path: "/my-tasks",
       icon: ListTodo,
     },
     {
-      name: "Goals",
-      path: "/goals",
+      name: "My Goals",
+      path: "/my-goals",
       icon: Target,
     },
     {
       name: "Attendance",
-      path: "/attendance",
+      path: "/my-attendance",
       icon: CalendarCheck,
     },
     {
       name: "Leave",
-      path: "/leave",
+      path: "/my-leave",
       icon: CalendarDays,
     },
     {
       name: "Performance",
-      path: "/performance",
+      path: "/my-performance",
       icon: Award,
-    },
-    {
-      name: "Reports",
-      path: "/reports",
-      icon: BarChart3,
     },
   ];
 
+  const menuItems = isEmployee ? employeeMenuItems : managerMenuItems;
+
+  const userData = sessionStorage.getItem("smartmanager_user");
+  let user = null;
+
+  try {
+    user = userData ? JSON.parse(userData) : null;
+  } catch {
+    user = null;
+  }
+
+  const displayName = user?.name || (isEmployee ? "Employee" : "Admin Manager");
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("");
+
   return (
-    <aside className="w-64 min-h-screen bg-slate-900 text-white flex flex-col">
+    <aside className="w-64 min-h-screen shrink-0 bg-slate-900 text-white flex flex-col">
       {/* Logo */}
       <div className="h-20 flex items-center px-6 border-b border-slate-700">
         <div>
@@ -90,6 +104,7 @@ function Sidebar() {
               <NavLink
                 key={item.name}
                 to={item.path}
+                end={item.path === "/" || item.path === "/employee-dashboard"}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3 py-3 rounded-lg transition ${
                     isActive
@@ -110,12 +125,14 @@ function Sidebar() {
       <div className="p-4 border-t border-slate-700">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-semibold">
-            AM
+            {initials || "U"}
           </div>
 
-          <div>
-            <p className="text-sm font-medium">Admin Manager</p>
-            <p className="text-xs text-slate-400">Manager</p>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">{displayName}</p>
+            <p className="text-xs text-slate-400">
+              {user?.role || role || "User"}
+            </p>
           </div>
         </div>
       </div>
