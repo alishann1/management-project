@@ -150,6 +150,86 @@ export async function deleteTask(taskId) {
     return result;
 }
 
+export async function getGoals() {
+    const response = await fetch(`${API_BASE_URL}/api/goals`, {
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to fetch goals.");
+    }
+
+    return result.data.map((goal) => ({
+        id: goal._id,
+        title: goal.title,
+        description: goal.description,
+        employee: goal.employee?.name || "",
+        department: goal.department,
+        category: goal.category,
+        target: goal.target,
+        progress: goal.progress,
+        status: goal.status,
+        deadline: goal.deadline
+            ? goal.deadline.split("T")[0]
+            : "",
+    }));
+}
+
+export async function createGoal(goalData) {
+    const response = await fetch(`${API_BASE_URL}/api/goals`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify(goalData),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to create goal.");
+    }
+
+    return result.data;
+}
+
+export async function updateGoal(goalId, goalData) {
+    const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify(goalData),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update goal.");
+    }
+
+    return result.data;
+}
+
+export async function deleteGoal(goalId) {
+    const response = await fetch(`${API_BASE_URL}/api/goals/${goalId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to delete goal.");
+    }
+
+    return result;
+}
+
 
 export async function loginUser(email, password) {
     const response = await fetch(`${API_BASE_URL}/api/auth/login`, {

@@ -7,8 +7,8 @@ import {
   Trash2,
   AlertTriangle,
 } from "lucide-react";
-import { useState } from "react";
-import goals from "../data/goals";
+import { useState, useEffect } from "react";
+import { getGoals, createGoal, updateGoal, deleteGoal } from "../services/api";
 const emptyGoal = {
   title: "",
   description: "",
@@ -26,12 +26,46 @@ function getStatusFromProgress(progress) {
   return "In Progress";
 }
 function Goals() {
-  const [goalList, setGoalList] = useState(goals);
+  const [goalList, setGoalList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [viewingGoal, setViewingGoal] = useState(null);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
   const [deletingGoal, setDeletingGoal] = useState(null);
   const [newGoal, setNewGoal] = useState({ ...emptyGoal });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadGoals() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const data = await getGoals();
+
+        if (isMounted) {
+          setGoalList(data);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message || "Failed to load goals.");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadGoals();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const handleAddGoal = (e) => {
     e.preventDefault();
     const progress = Number(newGoal.progress);

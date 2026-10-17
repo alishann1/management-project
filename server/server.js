@@ -8,6 +8,7 @@ import employeeRoutes from "./routes/employeeRoutes.js";
 import passwordSetupRoutes from "./routes/passwordSetupRoutes.js";
 import employeeAccountRoutes from "./routes/employeeAccountRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
+import goalRoutes from "./routes/goalRoutes.js";
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use("/api/email-verification", emailVerificationRoutes);
 app.use("/api/password-setup", passwordSetupRoutes);
 app.use("/api/employee-accounts", employeeAccountRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/goals", goalRoutes);
 
 app.get("/api/health", (req, res) => {
     res.status(200).json({
