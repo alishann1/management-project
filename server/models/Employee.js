@@ -8,6 +8,12 @@ const employeeSchema = new mongoose.Schema(
             required: true,
             trim: true,
         },
+        email: {
+            type: String,
+            trim: true,
+            lowercase: true,
+            default: "",
+        },
         department: {
             type: String,
             required: true,
@@ -30,9 +36,7 @@ const employeeSchema = new mongoose.Schema(
             default: 0,
         },
     },
-    {
-        timestamps: true,
-    }
+    { timestamps: true }
 );
 
 const Employee = mongoose.model("Employee", employeeSchema);

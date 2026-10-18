@@ -9,7 +9,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getEmployees } from "../services/api";
+import { getEmployees, createEmployee } from "../services/api";
 
 function Employees() {
   const [deletingEmployee, setDeletingEmployee] = useState(null);
@@ -54,26 +54,37 @@ function Employees() {
     loadEmployees();
   }, []);
 
-  const handleAddEmployee = (e) => {
+  const handleAddEmployee = async (e) => {
     e.preventDefault();
 
-    const employeeToAdd = {
-      id: Date.now(),
-      ...newEmployee,
-    };
+    try {
+      setError("");
 
-    setEmployeeList([...employeeList, employeeToAdd]);
+      const employeeToAdd = {
+        ...newEmployee,
+        performance: Number(newEmployee.performance),
+      };
 
-    setShowAddModal(false);
+      const savedEmployee = await createEmployee(employeeToAdd);
 
-    setNewEmployee({
-      name: "",
-      email: "",
-      department: "IT",
-      position: "",
-      status: "Active",
-      performance: 0,
-    });
+      setEmployeeList((previousEmployees) => [
+        savedEmployee,
+        ...previousEmployees,
+      ]);
+
+      setShowAddModal(false);
+
+      setNewEmployee({
+        name: "",
+        email: "",
+        department: "IT",
+        position: "",
+        status: "Active",
+        performance: 0,
+      });
+    } catch (error) {
+      setError(error.message || "Failed to add employee.");
+    }
   };
 
   const filteredEmployees = employeeList.filter((employee) => {

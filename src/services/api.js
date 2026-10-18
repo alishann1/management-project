@@ -46,6 +46,71 @@ export async function getEmployees() {
 }
 
 
+export async function createEmployee(employeeData) {
+    const response = await fetch(`${API_BASE_URL}/api/employees`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify(employeeData),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to create employee.");
+    }
+
+    const employee = result.data;
+
+    return {
+        id: employee._id,
+        name: employee.name,
+        email: employee.email || "",
+        department: employee.department,
+        position: employee.role,
+        status: employee.status,
+        performance: employee.performance,
+    };
+}
+
+
+export async function updateEmployee(employeeId, employeeData) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/employees/${employeeId}`,
+        {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                ...getAuthHeaders(),
+            },
+            body: JSON.stringify(employeeData),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update employee.");
+    }
+
+    const employee = result.data;
+
+    return {
+        id: employee._id,
+        name: employee.name,
+        email: employee.email || "",
+        department: employee.department,
+        position: employee.role,
+        status: employee.status,
+        performance: employee.performance,
+    };
+}
+
+
+
+
 export async function getMyTasks() {
     const response = await fetch(`${API_BASE_URL}/api/tasks/my-tasks`, {
         headers: getAuthHeaders(),
