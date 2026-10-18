@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
-    "seed:manager": "node seedManager.js"
+    "seed:manager": "node seedManager.js",
+    "seed:test-data": "node seedTestData.js"
   },
   "keywords": [],
   "author": "",

@@ -7,8 +7,14 @@ import {
   Trash2,
   AlertTriangle,
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { getGoals, createGoal, updateGoal, deleteGoal } from "../services/api";
+import { useState, useEffect, useRef } from "react";
+import {
+  getGoals,
+  createGoal,
+  updateGoal,
+  deleteGoal,
+  getEmployees,
+} from "../services/api";
 const emptyGoal = {
   title: "",
   description: "",
@@ -35,6 +41,8 @@ function Goals() {
   const [editingGoal, setEditingGoal] = useState(null);
   const [deletingGoal, setDeletingGoal] = useState(null);
   const [newGoal, setNewGoal] = useState({ ...emptyGoal });
+  const [employeeList, setEmployeeList] = useState([]);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -66,48 +74,130 @@ function Goals() {
       isMounted = false;
     };
   }, []);
-  const handleAddGoal = (e) => {
-    e.preventDefault();
-    const progress = Number(newGoal.progress);
-    const goalToAdd = {
-      id: Date.now(),
-      ...newGoal,
-      target: Number(newGoal.target),
-      progress,
-      status: getStatusFromProgress(progress),
-    };
-    setGoalList((currentGoals) => [...currentGoals, goalToAdd]);
-    setNewGoal({ ...emptyGoal });
-    setShowAddGoal(false);
-  };
-  const handleEditGoal = (e) => {
-    e.preventDefault();
-    const progress = Number(editingGoal.progress);
-    const updatedGoal = {
-      ...editingGoal,
-      target: Number(editingGoal.target),
-      progress,
-      status: getStatusFromProgress(progress),
-    };
-    setGoalList((currentGoals) =>
-      currentGoals.map((goal) =>
-        goal.id === updatedGoal.id ? updatedGoal : goal,
-      ),
-    );
-    if (viewingGoal?.id === updatedGoal.id) {
-      setViewingGoal(updatedGoal);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadEmployees() {
+      try {
+        const employees = await getEmployees();
+
+        if (isMounted) {
+          setEmployeeList(employees);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message || "Failed to load employees.");
+        }
+      }
     }
-    setEditingGoal(null);
-  };
-  const handleDeleteGoal = () => {
-    setGoalList((currentGoals) =>
-      currentGoals.filter((goal) => goal.id !== deletingGoal.id),
-    );
-    if (viewingGoal?.id === deletingGoal.id) {
-      setViewingGoal(null);
+
+    loadEmployees();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleAddGoal = async (e) => {
+    e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+
+    try {
+      setSaving(true);
+      setError("");
+
+      const progress = Number(newGoal.progress);
+
+      const goalData = {
+        ...newGoal,
+        target: Number(newGoal.target),
+        progress,
+        status: getStatusFromProgress(progress),
+      };
+
+      await createGoal(goalData);
+
+      // Reload goals from the backend after a successful save.
+      const updatedGoals = await getGoals();
+      setGoalList(updatedGoals);
+
+      setNewGoal({ ...emptyGoal });
+      setShowAddGoal(false);
+    } catch (err) {
+      setError(err.message || "Failed to add goal.");
+    } finally {
+      submittingRef.current = false;
+      setSaving(false);
     }
-    setDeletingGoal(null);
   };
+
+  const handleEditGoal = async (e) => {
+    e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+
+    try {
+      setSaving(true);
+      setError("");
+
+      const progress = Number(editingGoal.progress);
+
+      const goalData = {
+        ...editingGoal,
+        target: Number(editingGoal.target),
+        progress,
+        status: getStatusFromProgress(progress),
+      };
+
+      await updateGoal(editingGoal.id, goalData);
+
+      // Refresh the list with the latest backend data.
+      const updatedGoals = await getGoals();
+      setGoalList(updatedGoals);
+
+      // Refresh the View modal if it is showing this goal.
+      const refreshedGoal = updatedGoals.find(
+        (goal) => goal.id === editingGoal.id,
+      );
+
+      if (viewingGoal?.id === editingGoal.id && refreshedGoal) {
+        setViewingGoal(refreshedGoal);
+      }
+
+      setEditingGoal(null);
+    } catch (err) {
+      setError(err.message || "Failed to update goal.");
+    } finally {
+      submittingRef.current = false;
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteGoal = async () => {
+    try {
+      setSaving(true);
+      setError("");
+
+      await deleteGoal(deletingGoal.id);
+
+      // Refresh the list after the backend confirms deletion.
+      const updatedGoals = await getGoals();
+      setGoalList(updatedGoals);
+
+      if (viewingGoal?.id === deletingGoal.id) {
+        setViewingGoal(null);
+      }
+
+      setDeletingGoal(null);
+    } catch (err) {
+      setError(err.message || "Failed to delete goal.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const updateGoalField = (field, value) => {
     setEditingGoal((currentGoal) => ({ ...currentGoal, [field]: value }));
   };
@@ -158,11 +248,32 @@ function Goals() {
           <input
             type="text"
             required
+            list="goal-employee-options"
             value={goal.employee}
-            onChange={(e) => updateField("employee", e.target.value)}
-            placeholder="Enter employee name"
+            onChange={(e) => {
+              const employeeName = e.target.value;
+
+              const selectedEmployee = employeeList.find(
+                (employee) =>
+                  employee.name?.toLowerCase() ===
+                  employeeName.trim().toLowerCase(),
+              );
+
+              updateField("employee", employeeName);
+              updateField(
+                "department",
+                selectedEmployee ? selectedEmployee.department : "",
+              );
+            }}
+            placeholder="Start typing an employee name"
+            autoComplete="off"
             className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />{" "}
+          <datalist id="goal-employee-options">
+            {employeeList.map((employee) => (
+              <option key={employee.id} value={employee.name} />
+            ))}
+          </datalist>
         </div>{" "}
         <div>
           {" "}
@@ -170,21 +281,14 @@ function Goals() {
             {" "}
             Department{" "}
           </label>{" "}
-          <select
+          <input
+            type="text"
             required
+            readOnly
             value={goal.department}
-            onChange={(e) => updateField("department", e.target.value)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          >
-            {" "}
-            <option value="">Select department</option>{" "}
-            <option value="IT">IT</option>{" "}
-            <option value="Human Resources">Human Resources</option>{" "}
-            <option value="Finance">Finance</option>{" "}
-            <option value="Marketing">Marketing</option>{" "}
-            <option value="Operations">Operations</option>{" "}
-            <option value="Administration">Administration</option>{" "}
-          </select>{" "}
+            placeholder="Automatically selected"
+            className="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 outline-none"
+          />
         </div>{" "}
         <div>
           {" "}
@@ -274,11 +378,19 @@ function Goals() {
         </button>{" "}
         <button
           type="submit"
-          className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+          disabled={saving}
+          className={`rounded-lg px-4 py-2.5 text-sm font-medium text-white transition ${
+            saving
+              ? "cursor-not-allowed bg-blue-400"
+              : "cursor-pointer bg-blue-600 hover:bg-blue-700"
+          }`}
         >
-          {" "}
-          {submitLabel}{" "}
-        </button>{" "}
+          {saving
+            ? submitLabel === "Add Goal"
+              ? "Adding Goal..."
+              : "Saving Changes..."
+            : submitLabel}
+        </button>
       </div>{" "}
     </form>
   );
