@@ -184,4 +184,45 @@ router.put(
 );
 
 
+/* DELETE /api/employees/:id — delete an employee */
+router.delete(
+    "/:id",
+    authenticateToken,
+    authorizeRole("Manager"),
+    async (req, res) => {
+        try {
+            const employee = await Employee.findByIdAndDelete(req.params.id);
+
+            if (!employee) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Employee not found.",
+                });
+            }
+
+            res.status(200).json({
+                success: true,
+                message: "Employee deleted successfully.",
+                data: employee,
+            });
+        } catch (error) {
+            console.error("Failed to delete employee:", error.message);
+
+            if (error.name === "CastError") {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid employee ID.",
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                message: "Failed to delete employee.",
+            });
+        }
+    }
+);
+
+
+
 export default router;

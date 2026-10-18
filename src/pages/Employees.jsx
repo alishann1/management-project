@@ -9,7 +9,12 @@ import {
   Clock,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getEmployees, createEmployee } from "../services/api";
+import {
+  getEmployees,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
+} from "../services/api";
 
 function Employees() {
   const [deletingEmployee, setDeletingEmployee] = useState(null);
@@ -101,24 +106,51 @@ function Employees() {
     return matchesSearch && matchesDepartment && matchesStatus;
   });
 
-  const handleEditEmployee = (e) => {
+  const handleEditEmployee = async (e) => {
     e.preventDefault();
 
-    setEmployeeList(
-      employeeList.map((employee) =>
-        employee.id === editingEmployee.id ? editingEmployee : employee,
-      ),
-    );
+    try {
+      setError("");
 
-    setEditingEmployee(null);
+      const updatedEmployee = await updateEmployee(editingEmployee.id, {
+        ...editingEmployee,
+        performance: Number(editingEmployee.performance),
+      });
+
+      setEmployeeList((previousEmployees) =>
+        previousEmployees.map((employee) =>
+          employee.id === updatedEmployee.id ? updatedEmployee : employee,
+        ),
+      );
+
+      setEditingEmployee(null);
+    } catch (error) {
+      setError(error.message || "Failed to update employee.");
+    }
   };
 
-  const handleDeleteEmployee = () => {
-    setEmployeeList(
-      employeeList.filter((employee) => employee.id !== deletingEmployee.id),
-    );
+  const handleDeleteEmployee = async () => {
+    if (!deletingEmployee) return;
 
-    setDeletingEmployee(null);
+    try {
+      setError("");
+
+      await deleteEmployee(deletingEmployee.id);
+
+      setEmployeeList((previousEmployees) =>
+        previousEmployees.filter(
+          (employee) => employee.id !== deletingEmployee.id,
+        ),
+      );
+
+      setDeletingEmployee(null);
+
+      if (selectedEmployee?.id === deletingEmployee.id) {
+        setSelectedEmployee(null);
+      }
+    } catch (error) {
+      setError(error.message || "Failed to delete employee.");
+    }
   };
 
   return (

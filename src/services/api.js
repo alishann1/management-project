@@ -110,6 +110,24 @@ export async function updateEmployee(employeeId, employeeData) {
 
 
 
+export async function deleteEmployee(employeeId) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/employees/${employeeId}`,
+        {
+            method: "DELETE",
+            headers: getAuthHeaders(),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to delete employee.");
+    }
+
+    return result;
+}
+
 
 export async function getMyTasks() {
     const response = await fetch(`${API_BASE_URL}/api/tasks/my-tasks`, {
