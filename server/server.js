@@ -9,6 +9,7 @@ import passwordSetupRoutes from "./routes/passwordSetupRoutes.js";
 import employeeAccountRoutes from "./routes/employeeAccountRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import goalRoutes from "./routes/goalRoutes.js";
+import departmentRoutes from "./routes/departmentRoutes.js";
 
 dotenv.config();
 
@@ -24,7 +25,7 @@ app.use("/api/password-setup", passwordSetupRoutes);
 app.use("/api/employee-accounts", employeeAccountRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/goals", goalRoutes);
-
+app.use("/api/departments", departmentRoutes);
 app.get("/api/health", (req, res) => {
     res.status(200).json({
         success: true,

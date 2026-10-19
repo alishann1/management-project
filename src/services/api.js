@@ -331,3 +331,84 @@ export async function loginUser(email, password) {
 
     return result;
 }
+
+
+export async function getDepartments() {
+    const response = await fetch(`${API_BASE_URL}/api/departments`, {
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to fetch departments.");
+    }
+
+    return result.data.map((department) => ({
+        id: department._id,
+        name: department.name,
+        description: department.description || "",
+        manager: department.manager || "",
+        projects: department.projects ?? 0,
+    }));
+}
+
+export async function createDepartment(departmentData) {
+    const response = await fetch(`${API_BASE_URL}/api/departments`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify(departmentData),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to create department.");
+    }
+
+    return result.data;
+}
+
+export async function updateDepartment(departmentId, departmentData) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/departments/${departmentId}`,
+        {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                ...getAuthHeaders(),
+            },
+            body: JSON.stringify(departmentData),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update department.");
+    }
+
+    return result.data;
+}
+
+export async function deleteDepartment(departmentId) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/departments/${departmentId}`,
+        {
+            method: "DELETE",
+            headers: getAuthHeaders(),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to delete department.");
+    }
+
+    return result;
+}
+
