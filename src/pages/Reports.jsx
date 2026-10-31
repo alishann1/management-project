@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Users,
   FolderKanban,
@@ -9,6 +9,7 @@ import {
   BarChart3,
   Award,
   CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 
 import {
@@ -25,14 +26,15 @@ import {
   Legend,
 } from "recharts";
 
-import employees from "../data/employees";
-import departments from "../data/departments";
-import projects from "../data/projects";
-import tasks from "../data/tasks";
-import goals from "../data/goals";
+import {
+  getEmployees,
+  getDepartments,
+  getProjects,
+  getTasks,
+  getGoals,
+} from "../services/api";
 
 const TASK_COLORS = ["#2563eb", "#f59e0b", "#16a34a", "#64748b"];
-const PIE_COLORS = ["#2563eb", "#f59e0b", "#16a34a", "#64748b"];
 
 function StatCard({ title, value, subtitle, icon: Icon, color }) {
   return (
@@ -74,8 +76,66 @@ function EmptyChart({ message = "No data available for this department." }) {
 }
 
 function Reports() {
+  // Backend data.
+  const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [goals, setGoals] = useState([]);
+
+  // Loading and error states.
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+
+  // Department filter.
   const [selectedDepartment, setSelectedDepartment] = useState("All");
 
+  // Load report data from MongoDB.
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadReportData = async () => {
+      try {
+        setIsLoading(true);
+        setPageError("");
+
+        const [employeeData, departmentData, projectData, taskData, goalData] =
+          await Promise.all([
+            getEmployees(),
+            getDepartments(),
+            getProjects(),
+            getTasks(),
+            getGoals(),
+          ]);
+
+        if (!isMounted) return;
+
+        setEmployees(employeeData);
+        setDepartments(departmentData);
+        setProjects(projectData);
+        setTasks(taskData);
+        setGoals(goalData);
+      } catch (error) {
+        if (isMounted) {
+          setPageError(
+            error.message || "Failed to load report data. Please try again.",
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadReportData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Filter employees by department.
   const filteredEmployees = useMemo(
     () =>
       employees.filter(
@@ -83,9 +143,10 @@ function Reports() {
           selectedDepartment === "All" ||
           employee.department === selectedDepartment,
       ),
-    [selectedDepartment],
+    [employees, selectedDepartment],
   );
 
+  // Filter projects by department.
   const filteredProjects = useMemo(
     () =>
       projects.filter(
@@ -93,9 +154,10 @@ function Reports() {
           selectedDepartment === "All" ||
           project.department === selectedDepartment,
       ),
-    [selectedDepartment],
+    [projects, selectedDepartment],
   );
 
+  // Filter tasks by department.
   const filteredTasks = useMemo(
     () =>
       tasks.filter(
@@ -103,9 +165,10 @@ function Reports() {
           selectedDepartment === "All" ||
           task.department === selectedDepartment,
       ),
-    [selectedDepartment],
+    [tasks, selectedDepartment],
   );
 
+  // Filter goals by department.
   const filteredGoals = useMemo(
     () =>
       goals.filter(
@@ -113,9 +176,10 @@ function Reports() {
           selectedDepartment === "All" ||
           goal.department === selectedDepartment,
       ),
-    [selectedDepartment],
+    [goals, selectedDepartment],
   );
 
+  // Average employee performance.
   const averagePerformance = filteredEmployees.length
     ? Math.round(
         filteredEmployees.reduce(
@@ -125,6 +189,7 @@ function Reports() {
       )
     : 0;
 
+  // Completed records.
   const completedProjects = filteredProjects.filter(
     (project) => project.status === "Completed",
   ).length;
@@ -137,6 +202,7 @@ function Reports() {
     (goal) => goal.status === "Completed" || Number(goal.progress) >= 100,
   ).length;
 
+  // Average project progress.
   const projectProgress = filteredProjects.length
     ? Math.round(
         filteredProjects.reduce(
@@ -146,6 +212,7 @@ function Reports() {
       )
     : 0;
 
+  // Task status chart.
   const taskStatusData = useMemo(() => {
     const statuses = ["In Progress", "Pending", "Completed", "Planning"];
 
@@ -157,6 +224,7 @@ function Reports() {
       .filter((item) => item.value > 0);
   }, [filteredTasks]);
 
+  // Department performance chart.
   const departmentPerformanceData = useMemo(
     () =>
       departments
@@ -186,15 +254,17 @@ function Reports() {
             employees: departmentEmployees.length,
           };
         }),
-    [selectedDepartment],
+    [departments, employees, selectedDepartment],
   );
 
+  // Project progress chart.
   const projectProgressData = filteredProjects.map((project) => ({
     name:
       project.name.length > 20 ? `${project.name.slice(0, 20)}…` : project.name,
     progress: Number(project.progress || 0),
   }));
 
+  // Employee performance chart.
   const employeePerformanceData = [...filteredEmployees]
     .sort((a, b) => Number(b.performance || 0) - Number(a.performance || 0))
     .map((employee) => ({
@@ -202,10 +272,12 @@ function Reports() {
       performance: Number(employee.performance || 0),
     }));
 
+  // Top performer.
   const topPerformer = [...filteredEmployees].sort(
     (a, b) => Number(b.performance || 0) - Number(a.performance || 0),
   )[0];
 
+  // Completion rates.
   const taskCompletionRate = filteredTasks.length
     ? Math.round((completedTasks / filteredTasks.length) * 100)
     : 0;
@@ -228,13 +300,33 @@ function Reports() {
         </div>
 
         <button
+          type="button"
           onClick={() => window.print()}
-          className="print:hidden inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-medium text-white transition hover:bg-blue-700"
+          disabled={isLoading}
+          className="print:hidden inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Printer size={18} />
           Print Report
         </button>
       </div>
+
+      {/* Loading state */}
+      {isLoading && (
+        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700">
+          Loading organizational reports from the database...
+        </div>
+      )}
+
+      {/* Error state */}
+      {pageError && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertTriangle size={19} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Unable to load reports</p>
+            <p className="mt-1">{pageError}</p>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -249,9 +341,11 @@ function Reports() {
           <select
             value={selectedDepartment}
             onChange={(event) => setSelectedDepartment(event.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:w-64"
+            disabled={isLoading}
+            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 sm:w-64"
           >
             <option value="All">All Departments</option>
+
             {departments.map((department) => (
               <option key={department.id} value={department.name}>
                 {department.name}
@@ -265,7 +359,7 @@ function Reports() {
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Employees"
-          value={filteredEmployees.length}
+          value={isLoading ? "—" : filteredEmployees.length}
           subtitle="Employees in selection"
           icon={Users}
           color="bg-blue-50 text-blue-600"
@@ -273,7 +367,7 @@ function Reports() {
 
         <StatCard
           title="Projects"
-          value={filteredProjects.length}
+          value={isLoading ? "—" : filteredProjects.length}
           subtitle={`${completedProjects} completed`}
           icon={FolderKanban}
           color="bg-violet-50 text-violet-600"
@@ -281,7 +375,7 @@ function Reports() {
 
         <StatCard
           title="Tasks"
-          value={filteredTasks.length}
+          value={isLoading ? "—" : filteredTasks.length}
           subtitle={`${completedTasks} completed`}
           icon={ClipboardList}
           color="bg-amber-50 text-amber-600"
@@ -289,7 +383,7 @@ function Reports() {
 
         <StatCard
           title="Goals"
-          value={filteredGoals.length}
+          value={isLoading ? "—" : filteredGoals.length}
           subtitle={`${completedGoals} completed`}
           icon={Target}
           color="bg-emerald-50 text-emerald-600"
@@ -303,19 +397,23 @@ function Reports() {
             <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
               <TrendingUp size={22} />
             </div>
+
             <div>
               <p className="text-sm text-slate-500">
                 Average Employee Performance
               </p>
               <p className="text-2xl font-bold text-slate-800">
-                {averagePerformance}%
+                {isLoading ? "—" : `${averagePerformance}%`}
               </p>
             </div>
           </div>
+
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
               className="h-full rounded-full bg-blue-600"
-              style={{ width: `${averagePerformance}%` }}
+              style={{
+                width: `${averagePerformance}%`,
+              }}
             />
           </div>
         </div>
@@ -325,17 +423,21 @@ function Reports() {
             <div className="rounded-xl bg-emerald-50 p-3 text-emerald-600">
               <CheckCircle2 size={22} />
             </div>
+
             <div>
               <p className="text-sm text-slate-500">Task Completion Rate</p>
               <p className="text-2xl font-bold text-slate-800">
-                {taskCompletionRate}%
+                {isLoading ? "—" : `${taskCompletionRate}%`}
               </p>
             </div>
           </div>
+
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
               className="h-full rounded-full bg-emerald-600"
-              style={{ width: `${taskCompletionRate}%` }}
+              style={{
+                width: `${taskCompletionRate}%`,
+              }}
             />
           </div>
         </div>
@@ -345,17 +447,21 @@ function Reports() {
             <div className="rounded-xl bg-amber-50 p-3 text-amber-600">
               <Award size={22} />
             </div>
+
             <div>
               <p className="text-sm text-slate-500">Goal Completion Rate</p>
               <p className="text-2xl font-bold text-slate-800">
-                {goalCompletionRate}%
+                {isLoading ? "—" : `${goalCompletionRate}%`}
               </p>
             </div>
           </div>
+
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
               className="h-full rounded-full bg-amber-500"
-              style={{ width: `${goalCompletionRate}%` }}
+              style={{
+                width: `${goalCompletionRate}%`,
+              }}
             />
           </div>
         </div>
@@ -371,7 +477,12 @@ function Reports() {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart
                 data={departmentPerformanceData}
-                margin={{ top: 5, right: 10, left: -15, bottom: 35 }}
+                margin={{
+                  top: 5,
+                  right: 10,
+                  left: -15,
+                  bottom: 35,
+                }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis
@@ -423,6 +534,7 @@ function Reports() {
                     />
                   ))}
                 </Pie>
+
                 <Tooltip />
                 <Legend verticalAlign="bottom" />
               </PieChart>
@@ -442,7 +554,12 @@ function Reports() {
           <ResponsiveContainer width="100%" height={320}>
             <BarChart
               data={projectProgressData}
-              margin={{ top: 10, right: 15, left: -10, bottom: 35 }}
+              margin={{
+                top: 10,
+                right: 15,
+                left: -10,
+                bottom: 35,
+              }}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
@@ -486,7 +603,12 @@ function Reports() {
             <BarChart
               data={employeePerformanceData}
               layout="vertical"
-              margin={{ top: 5, right: 25, left: 10, bottom: 5 }}
+              margin={{
+                top: 5,
+                right: 25,
+                left: 10,
+                bottom: 5,
+              }}
             >
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis
@@ -522,6 +644,7 @@ function Reports() {
           <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
             <BarChart3 size={22} />
           </div>
+
           <div>
             <h2 className="text-lg font-bold text-slate-800">Key Insights</h2>
             <p className="text-sm text-slate-500">
@@ -533,6 +656,7 @@ function Reports() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="rounded-xl bg-slate-50 p-4">
             <p className="text-sm text-slate-500">Top Performer</p>
+
             {topPerformer ? (
               <>
                 <p className="mt-1 font-semibold text-slate-800">
@@ -586,27 +710,28 @@ function Reports() {
         SmartManager · Organizational Management & Performance Dashboard
       </p>
 
+      {/* Print styling */}
       <style>{`
-        @media print {
-          body {
-            background: white !important;
-          }
+                @media print {
+                    body {
+                        background: white !important;
+                    }
 
-          aside,
-          nav {
-            display: none !important;
-          }
+                    aside,
+                    nav {
+                        display: none !important;
+                    }
 
-          main {
-            padding: 12px !important;
-          }
+                    main {
+                        padding: 12px !important;
+                    }
 
-          section,
-          .rounded-2xl {
-            break-inside: avoid;
-          }
-        }
-      `}</style>
+                    section,
+                    .rounded-2xl {
+                        break-inside: avoid;
+                    }
+                }
+            `}</style>
     </div>
   );
 }

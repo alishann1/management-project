@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Users,
   TrendingUp,
@@ -14,658 +14,667 @@ import {
   CalendarDays,
   Target,
 } from "lucide-react";
-import employees from "../data/employees";
 
-const initialReviews = [
-  {
-    id: 1,
-    employee: "Ali Khan",
-    department: "IT",
-    reviewPeriod: "Q3 2026",
-    score: 92,
-    rating: "Excellent",
-    strengths: "Strong technical skills, problem-solving, and teamwork.",
-    improvements: "Continue developing leadership and mentoring skills.",
-    reviewDate: "2026-09-30",
-  },
-  {
-    id: 2,
-    employee: "Sara Ahmed",
-    department: "Human Resources",
-    reviewPeriod: "Q3 2026",
-    score: 88,
-    rating: "Very Good",
-    strengths: "Effective communication, recruitment, and employee relations.",
-    improvements: "Improve reporting efficiency and data analysis.",
-    reviewDate: "2026-09-28",
-  },
-  {
-    id: 3,
-    employee: "Ahmed Shah",
-    department: "Finance",
-    reviewPeriod: "Q3 2026",
-    score: 84,
-    rating: "Very Good",
-    strengths:
-      "Accurate financial reporting and responsible budget management.",
-    improvements: "Develop more advanced financial forecasting skills.",
-    reviewDate: "2026-09-25",
-  },
-  {
-    id: 4,
-    employee: "Fatima Ali",
-    department: "Marketing",
-    reviewPeriod: "Q3 2026",
-    score: 79,
-    rating: "Good",
-    strengths: "Creative campaign ideas and effective communication.",
-    improvements: "Improve campaign analytics and deadline management.",
-    reviewDate: "2026-09-22",
-  },
-  {
-    id: 5,
-    employee: "Usman Khan",
-    department: "IT",
-    reviewPeriod: "Q3 2026",
-    score: 74,
-    rating: "Good",
-    strengths: "Good design sense and collaboration with the development team.",
-    improvements: "Improve task estimation and consistency in delivery.",
-    reviewDate: "2026-09-20",
-  },
-  {
-    id: 6,
-    employee: "Ayesha Malik",
-    department: "Operations",
-    reviewPeriod: "Q3 2026",
-    score: 86,
-    rating: "Very Good",
-    strengths: "Organized operations, process coordination, and reliability.",
-    improvements: "Document process improvements more consistently.",
-    reviewDate: "2026-09-18",
-  },
-  {
-    id: 7,
-    employee: "Hassan Ali",
-    department: "IT",
-    reviewPeriod: "Q3 2026",
-    score: 68,
-    rating: "Needs Improvement",
-    strengths: "Shows willingness to learn and support the team.",
-    improvements: "Focus on meeting deadlines and improving code quality.",
-    reviewDate: "2026-09-15",
-  },
-  {
-    id: 8,
-    employee: "Maryam Shah",
-    department: "Human Resources",
-    reviewPeriod: "Q3 2026",
-    score: 81,
-    rating: "Good",
-    strengths: "Careful documentation and dependable administrative support.",
-    improvements: "Develop confidence in handling complex HR tasks.",
-    reviewDate: "2026-09-12",
-  },
-];
+import {
+  getEmployees,
+  getPerformanceReviews,
+  createPerformanceReview,
+  updatePerformanceReview,
+  deletePerformanceReview,
+} from "../services/api";
 
-const emptyForm = {
-  employee: "",
-  reviewPeriod: "Q3 2026",
-  score: "75",
-  strengths: "",
-  improvements: "",
-  reviewDate: "2026-10-10",
+// Get today's date in YYYY-MM-DD format using local time.
+const getTodayDate = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 };
 
-function getRating(score) {
+// Empty form defaults.
+const getEmptyForm = () => ({
+  employeeId: "",
+  reviewPeriod: "",
+  score: "",
+  strengths: "",
+  improvements: "",
+  reviewDate: getTodayDate(),
+});
+
+// Calculate rating from score.
+const getRating = (score) => {
   const value = Number(score);
 
   if (value >= 90) return "Excellent";
   if (value >= 80) return "Very Good";
   if (value >= 70) return "Good";
   if (value >= 60) return "Satisfactory";
+
   return "Needs Improvement";
-}
+};
 
-function getRatingClasses(rating) {
-  if (rating === "Excellent") {
-    return "bg-green-50 text-green-700";
+// Rating badge styles.
+const getRatingClasses = (rating) => {
+  switch (rating) {
+    case "Excellent":
+      return "bg-green-100 text-green-700";
+    case "Very Good":
+      return "bg-blue-100 text-blue-700";
+    case "Good":
+      return "bg-indigo-100 text-indigo-700";
+    case "Satisfactory":
+      return "bg-yellow-100 text-yellow-700";
+    case "Needs Improvement":
+      return "bg-red-100 text-red-700";
+    default:
+      return "bg-gray-100 text-gray-700";
   }
+};
 
-  if (rating === "Very Good") {
-    return "bg-blue-50 text-blue-700";
-  }
+// Score text colors.
+const getScoreColor = (score) => {
+  if (score >= 90) return "text-green-600";
+  if (score >= 80) return "text-blue-600";
+  if (score >= 70) return "text-indigo-600";
+  if (score >= 60) return "text-yellow-600";
 
-  if (rating === "Good") {
-    return "bg-indigo-50 text-indigo-700";
-  }
+  return "text-red-600";
+};
 
-  if (rating === "Satisfactory") {
-    return "bg-amber-50 text-amber-700";
-  }
+// Format date without UTC timezone shifting.
+const formatDate = (dateString) => {
+  if (!dateString) return "—";
 
-  return "bg-red-50 text-red-700";
-}
+  const date = new Date(`${dateString.slice(0, 10)}T00:00:00`);
 
-function getScoreColor(score) {
-  if (score >= 90) return "bg-green-500";
-  if (score >= 80) return "bg-blue-500";
-  if (score >= 70) return "bg-indigo-500";
-  if (score >= 60) return "bg-amber-500";
-  return "bg-red-500";
-}
+  if (Number.isNaN(date.getTime())) return "—";
 
-function formatDate(date) {
-  if (!date) return "—";
-
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
+  return date.toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
-}
+};
 
 function Performance() {
-  const [reviews, setReviews] = useState(initialReviews);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedDepartment, setSelectedDepartment] = useState("All");
-  const [selectedRating, setSelectedRating] = useState("All");
-  const [selectedPeriod, setSelectedPeriod] = useState("All");
+  // Database data.
+  const [reviews, setReviews] = useState([]);
+  const [employees, setEmployees] = useState([]);
 
-  const [viewingReview, setViewingReview] = useState(null);
-  const [editingReview, setEditingReview] = useState(null);
-  const [deletingReview, setDeletingReview] = useState(null);
+  // Loading and API errors.
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Filters.
+  const [searchTerm, setSearchTerm] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("All");
+  const [ratingFilter, setRatingFilter] = useState("All");
+  const [periodFilter, setPeriodFilter] = useState("All");
+
+  // Modal states.
   const [isAdding, setIsAdding] = useState(false);
-  const [formData, setFormData] = useState(emptyForm);
+  const [editingReview, setEditingReview] = useState(null);
+  const [viewingReview, setViewingReview] = useState(null);
+  const [deletingReview, setDeletingReview] = useState(null);
+
+  // Form state.
+  const [formData, setFormData] = useState(getEmptyForm);
   const [formError, setFormError] = useState("");
 
-  const departments = useMemo(
-    () => [...new Set(employees.map((employee) => employee.department))].sort(),
-    [],
-  );
+  // Load employees and performance reviews from MongoDB.
+  useEffect(() => {
+    let isMounted = true;
 
-  const periods = useMemo(
-    () => [...new Set(reviews.map((review) => review.reviewPeriod))].sort(),
-    [reviews],
-  );
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        setPageError("");
 
+        const [employeeData, reviewData] = await Promise.all([
+          getEmployees(),
+          getPerformanceReviews(),
+        ]);
+
+        if (isMounted) {
+          setEmployees(employeeData);
+          setReviews(reviewData);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setPageError(error.message || "Failed to load performance data.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Get departments from database employees.
+  const departments = useMemo(() => {
+    return [
+      ...new Set(
+        employees.map((employee) => employee.department).filter(Boolean),
+      ),
+    ].sort();
+  }, [employees]);
+
+  // Get review periods from database reviews.
+  const reviewPeriods = useMemo(() => {
+    return [
+      ...new Set(reviews.map((review) => review.reviewPeriod).filter(Boolean)),
+    ].sort();
+  }, [reviews]);
+
+  // Filter reviews.
   const filteredReviews = useMemo(() => {
     return reviews.filter((review) => {
-      const matchesSearch = review.employee
+      const employeeName = review.employee || "";
+
+      const matchesSearch = employeeName
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
 
       const matchesDepartment =
-        selectedDepartment === "All" ||
-        review.department === selectedDepartment;
+        departmentFilter === "All" || review.department === departmentFilter;
 
       const matchesRating =
-        selectedRating === "All" || review.rating === selectedRating;
+        ratingFilter === "All" || review.rating === ratingFilter;
 
       const matchesPeriod =
-        selectedPeriod === "All" || review.reviewPeriod === selectedPeriod;
+        periodFilter === "All" || review.reviewPeriod === periodFilter;
 
       return (
         matchesSearch && matchesDepartment && matchesRating && matchesPeriod
       );
     });
-  }, [reviews, searchTerm, selectedDepartment, selectedRating, selectedPeriod]);
+  }, [reviews, searchTerm, departmentFilter, ratingFilter, periodFilter]);
 
-  const averageScore =
-    filteredReviews.length > 0
-      ? Math.round(
-          filteredReviews.reduce((total, review) => total + review.score, 0) /
-            filteredReviews.length,
-        )
-      : 0;
+  // Summary statistics.
+  const averageScore = useMemo(() => {
+    if (reviews.length === 0) return 0;
 
-  const excellentCount = filteredReviews.filter(
+    const total = reviews.reduce(
+      (sum, review) => sum + Number(review.score || 0),
+      0,
+    );
+
+    return Math.round(total / reviews.length);
+  }, [reviews]);
+
+  const excellentRatings = reviews.filter(
     (review) => review.rating === "Excellent",
   ).length;
 
-  const improvementCount = filteredReviews.filter(
-    (review) => review.score < 70,
+  const needsAttention = reviews.filter(
+    (review) =>
+      review.rating === "Needs Improvement" || Number(review.score) < 60,
   ).length;
 
-  const openAddModal = () => {
-    setFormData(emptyForm);
+  // Reset form and open Add Review modal.
+  const handleAddReview = () => {
+    setFormData(getEmptyForm());
     setFormError("");
-    setIsAdding(true);
     setEditingReview(null);
+    setIsAdding(true);
   };
 
-  const openEditModal = (review) => {
+  // Open Edit Review modal.
+  const handleEditReview = (review) => {
     setFormData({
-      employee: review.employee,
-      reviewPeriod: review.reviewPeriod,
-      score: String(review.score),
-      strengths: review.strengths,
-      improvements: review.improvements,
-      reviewDate: review.reviewDate,
+      employeeId: review.employeeId || "",
+      reviewPeriod: review.reviewPeriod || "",
+      score:
+        review.score === null || review.score === undefined
+          ? ""
+          : String(review.score),
+      strengths: review.strengths || "",
+      improvements: review.improvements || "",
+      reviewDate: review.reviewDate
+        ? review.reviewDate.slice(0, 10)
+        : getTodayDate(),
     });
 
     setFormError("");
     setEditingReview(review);
     setIsAdding(false);
-    setViewingReview(null);
   };
 
-  const closeFormModal = () => {
-    setIsAdding(false);
-    setEditingReview(null);
-    setFormData(emptyForm);
-    setFormError("");
-  };
+  // Validate form fields.
+  const validateForm = () => {
+    if (!formData.employeeId) {
+      return "Please select an employee.";
+    }
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    setFormError("");
+    if (
+      formData.score === "" ||
+      formData.score === null ||
+      formData.score === undefined
+    ) {
+      return "Please enter a performance score.";
+    }
 
     const score = Number(formData.score);
 
-    if (
-      !formData.employee ||
-      !formData.reviewPeriod.trim() ||
-      !formData.reviewDate ||
-      !formData.strengths.trim() ||
-      !formData.improvements.trim() ||
-      formData.score === ""
-    ) {
-      setFormError("Please complete all fields.");
-      return;
-    }
-
     if (!Number.isFinite(score) || score < 0 || score > 100) {
-      setFormError("Score must be a number between 0 and 100.");
-      return;
+      return "Performance score must be between 0 and 100.";
     }
 
-    const selectedEmployee = employees.find(
-      (employee) => employee.name === formData.employee,
-    );
+    if (!formData.reviewPeriod.trim()) {
+      return "Please enter a review period.";
+    }
 
-    if (!selectedEmployee) {
-      setFormError("Please select a valid employee.");
+    if (!formData.strengths.trim()) {
+      return "Please enter employee strengths.";
+    }
+
+    if (!formData.improvements.trim()) {
+      return "Please enter areas for improvement.";
+    }
+
+    if (!formData.reviewDate) {
+      return "Please select a review date.";
+    }
+
+    return "";
+  };
+
+  // Save a new or updated performance review.
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    const validationError = validateForm();
+
+    if (validationError) {
+      setFormError(validationError);
       return;
     }
 
     const reviewData = {
-      employee: selectedEmployee.name,
-      department: selectedEmployee.department,
+      employeeId: formData.employeeId,
       reviewPeriod: formData.reviewPeriod.trim(),
-      score,
-      rating: getRating(score),
+      score: Number(formData.score),
       strengths: formData.strengths.trim(),
       improvements: formData.improvements.trim(),
       reviewDate: formData.reviewDate,
     };
 
-    if (isAdding) {
-      setReviews((current) => [{ id: Date.now(), ...reviewData }, ...current]);
-    } else if (editingReview) {
-      setReviews((current) =>
-        current.map((review) =>
-          review.id === editingReview.id
-            ? { ...review, ...reviewData }
-            : review,
-        ),
-      );
-    }
+    try {
+      setIsSaving(true);
+      setFormError("");
 
-    closeFormModal();
+      if (editingReview) {
+        const updatedReview = await updatePerformanceReview(
+          editingReview.id,
+          reviewData,
+        );
+
+        setReviews((previousReviews) =>
+          previousReviews.map((review) =>
+            review.id === editingReview.id ? updatedReview : review,
+          ),
+        );
+      } else {
+        const newReview = await createPerformanceReview(reviewData);
+
+        setReviews((previousReviews) => [newReview, ...previousReviews]);
+      }
+
+      setIsAdding(false);
+      setEditingReview(null);
+      setFormData(getEmptyForm());
+    } catch (error) {
+      setFormError(error.message || "Unable to save the performance review.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleDelete = () => {
+  // Delete a performance review.
+  const handleDeleteReview = async () => {
     if (!deletingReview) return;
 
-    setReviews((current) =>
-      current.filter((review) => review.id !== deletingReview.id),
-    );
+    try {
+      setIsDeleting(true);
+      setPageError("");
 
-    if (viewingReview?.id === deletingReview.id) {
-      setViewingReview(null);
+      await deletePerformanceReview(deletingReview.id);
+
+      setReviews((previousReviews) =>
+        previousReviews.filter((review) => review.id !== deletingReview.id),
+      );
+
+      setDeletingReview(null);
+    } catch (error) {
+      setPageError(error.message || "Unable to delete the performance review.");
+    } finally {
+      setIsDeleting(false);
     }
-
-    setDeletingReview(null);
   };
 
-  const resetFilters = () => {
-    setSearchTerm("");
-    setSelectedDepartment("All");
-    setSelectedRating("All");
-    setSelectedPeriod("All");
+  // Close add/edit modal.
+  const closeFormModal = () => {
+    if (isSaving) return;
+
+    setIsAdding(false);
+    setEditingReview(null);
+    setFormData(getEmptyForm());
+    setFormError("");
   };
 
-  const summaryCards = [
-    {
-      title: "Average Score",
-      value: `${averageScore}%`,
-      description: "Average of filtered reviews",
-      icon: TrendingUp,
-      iconStyle: "bg-blue-50 text-blue-600",
-    },
-    {
-      title: "Total Reviews",
-      value: filteredReviews.length,
-      description: "Employee performance reviews",
-      icon: ClipboardCheck,
-      iconStyle: "bg-indigo-50 text-indigo-600",
-    },
-    {
-      title: "Excellent Ratings",
-      value: excellentCount,
-      description: "Scores of 90 or above",
-      icon: Award,
-      iconStyle: "bg-green-50 text-green-600",
-    },
-    {
-      title: "Needs Attention",
-      value: improvementCount,
-      description: "Scores below 70",
-      icon: Target,
-      iconStyle: "bg-amber-50 text-amber-600",
-    },
-  ];
+  // Shared form modal.
+  const showFormModal = isAdding || Boolean(editingReview);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800">
+          <h1 className="text-2xl font-bold text-gray-800">
             Performance Management
           </h1>
-          <p className="mt-2 text-slate-500">
-            Review employee performance, track scores, and identify development
-            opportunities.
+          <p className="mt-1 text-sm text-gray-500">
+            Review, evaluate, and monitor employee performance.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={openAddModal}
-          className="inline-flex cursor-pointer items-center justify-center gap-2 self-start rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+          onClick={handleAddReview}
+          disabled={isLoading}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus size={18} />
           Add Performance Review
         </button>
       </div>
 
+      {/* Page Error */}
+      {pageError && (
+        <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertTriangle size={19} className="mt-0.5 shrink-0" />
+          <span>{pageError}</span>
+        </div>
+      )}
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        {summaryCards.map((card) => {
-          const Icon = card.icon;
-
-          return (
-            <div
-              key={card.title}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">
-                    {card.title}
-                  </p>
-                  <h2 className="mt-2 text-3xl font-bold text-slate-800">
-                    {card.value}
-                  </h2>
-                </div>
-
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.iconStyle}`}
-                >
-                  <Icon size={24} />
-                </div>
-              </div>
-
-              <p className="mt-4 text-sm text-slate-500">{card.description}</p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Average Score</p>
+              <h2 className="mt-2 text-3xl font-bold text-gray-800">
+                {isLoading ? "—" : `${averageScore}%`}
+              </h2>
             </div>
-          );
-        })}
+            <div className="rounded-lg bg-blue-50 p-3 text-blue-600">
+              <TrendingUp size={23} />
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-gray-400">
+            Average across all reviews
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total Reviews</p>
+              <h2 className="mt-2 text-3xl font-bold text-gray-800">
+                {isLoading ? "—" : reviews.length}
+              </h2>
+            </div>
+            <div className="rounded-lg bg-purple-50 p-3 text-purple-600">
+              <ClipboardCheck size={23} />
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-gray-400">
+            Recorded performance reviews
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Excellent Ratings</p>
+              <h2 className="mt-2 text-3xl font-bold text-gray-800">
+                {isLoading ? "—" : excellentRatings}
+              </h2>
+            </div>
+            <div className="rounded-lg bg-green-50 p-3 text-green-600">
+              <Award size={23} />
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-gray-400">
+            Reviews scoring 90 or above
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Needs Attention</p>
+              <h2 className="mt-2 text-3xl font-bold text-gray-800">
+                {isLoading ? "—" : needsAttention}
+              </h2>
+            </div>
+            <div className="rounded-lg bg-red-50 p-3 text-red-600">
+              <Target size={23} />
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-gray-400">Reviews scoring below 60</p>
+        </div>
       </div>
 
-      {/* Performance Records */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 p-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-slate-800">
-                Employee Performance
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Review scores, ratings, and employee development records.
-              </p>
-            </div>
+      {/* Filters */}
+      <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <Search size={18} className="text-gray-500" />
+          <h2 className="font-semibold text-gray-800">
+            Search and Filter Reviews
+          </h2>
+        </div>
 
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <Users size={18} />
-              {filteredReviews.length}{" "}
-              {filteredReviews.length === 1 ? "review" : "reviews"}
-            </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="relative">
+            <Search
+              size={17}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search employee..."
+              className="w-full rounded-lg border border-gray-200 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
           </div>
 
-          {/* Filters */}
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search employee..."
-                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
+          <select
+            value={departmentFilter}
+            onChange={(event) => setDepartmentFilter(event.target.value)}
+            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+          >
+            <option value="All">All Departments</option>
+            {departments.map((department) => (
+              <option key={department} value={department}>
+                {department}
+              </option>
+            ))}
+          </select>
 
-            <select
-              value={selectedDepartment}
-              onChange={(event) => setSelectedDepartment(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            >
-              <option value="All">All Departments</option>
-              {departments.map((department) => (
-                <option key={department} value={department}>
-                  {department}
-                </option>
-              ))}
-            </select>
+          <select
+            value={ratingFilter}
+            onChange={(event) => setRatingFilter(event.target.value)}
+            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+          >
+            <option value="All">All Ratings</option>
+            <option value="Excellent">Excellent</option>
+            <option value="Very Good">Very Good</option>
+            <option value="Good">Good</option>
+            <option value="Satisfactory">Satisfactory</option>
+            <option value="Needs Improvement">Needs Improvement</option>
+          </select>
 
-            <select
-              value={selectedRating}
-              onChange={(event) => setSelectedRating(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            >
-              <option value="All">All Ratings</option>
-              <option value="Excellent">Excellent</option>
-              <option value="Very Good">Very Good</option>
-              <option value="Good">Good</option>
-              <option value="Satisfactory">Satisfactory</option>
-              <option value="Needs Improvement">Needs Improvement</option>
-            </select>
+          <select
+            value={periodFilter}
+            onChange={(event) => setPeriodFilter(event.target.value)}
+            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+          >
+            <option value="All">All Review Periods</option>
+            {reviewPeriods.map((period) => (
+              <option key={period} value={period}>
+                {period}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-            <select
-              value={selectedPeriod}
-              onChange={(event) => setSelectedPeriod(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            >
-              <option value="All">All Review Periods</option>
-              {periods.map((period) => (
-                <option key={period} value={period}>
-                  {period}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mt-4 flex justify-end">
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="cursor-pointer text-sm font-medium text-blue-600 transition hover:text-blue-800"
-            >
-              Reset filters
-            </button>
+      {/* Performance Reviews Table */}
+      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+        <div className="flex flex-col gap-2 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-gray-800">
+              Employee Performance Reviews
+            </h2>
+            <p className="mt-1 text-xs text-gray-500">
+              {filteredReviews.length} review(s) found
+            </p>
           </div>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1050px] text-left">
-            <thead className="bg-slate-50">
+          <table className="w-full min-w-[850px] text-left text-sm">
+            <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
               <tr>
-                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Employee
-                </th>
-                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Review Period
-                </th>
-                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Performance Score
-                </th>
-                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Rating
-                </th>
-                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Review Date
-                </th>
-                <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Actions
-                </th>
+                <th className="px-5 py-4 font-semibold">Employee</th>
+                <th className="px-5 py-4 font-semibold">Department</th>
+                <th className="px-5 py-4 font-semibold">Review Period</th>
+                <th className="px-5 py-4 font-semibold">Score</th>
+                <th className="px-5 py-4 font-semibold">Rating</th>
+                <th className="px-5 py-4 font-semibold">Review Date</th>
+                <th className="px-5 py-4 text-center font-semibold">Actions</th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-100">
-              {filteredReviews.map((review) => (
-                <tr key={review.id} className="transition hover:bg-slate-50">
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-slate-800">
-                      {review.employee}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {review.department}
-                    </p>
-                  </td>
-
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {review.reviewPeriod}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className={`h-full rounded-full transition-all ${getScoreColor(review.score)}`}
-                          style={{ width: `${review.score}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-semibold text-slate-700">
-                        {review.score}%
-                      </span>
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getRatingClasses(review.rating)}`}
-                    >
-                      {review.rating}
-                    </span>
-                  </td>
-
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {formatDate(review.reviewDate)}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        title="View review"
-                        aria-label={`View performance review for ${review.employee}`}
-                        onClick={() => setViewingReview(review)}
-                        className="cursor-pointer rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100"
-                      >
-                        <Eye size={16} />
-                      </button>
-
-                      <button
-                        type="button"
-                        title="Edit review"
-                        aria-label={`Edit performance review for ${review.employee}`}
-                        onClick={() => openEditModal(review)}
-                        className="cursor-pointer rounded-lg border border-slate-200 p-2 text-blue-600 transition hover:bg-blue-50"
-                      >
-                        <Pencil size={16} />
-                      </button>
-
-                      <button
-                        type="button"
-                        title="Delete review"
-                        aria-label={`Delete performance review for ${review.employee}`}
-                        onClick={() => setDeletingReview(review)}
-                        className="cursor-pointer rounded-lg border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {filteredReviews.length === 0 && (
+            <tbody className="divide-y divide-gray-100">
+              {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
-                      <ClipboardCheck size={26} className="text-slate-400" />
-                    </div>
-                    <h3 className="mt-4 text-base font-semibold text-slate-800">
-                      No performance reviews found
-                    </h3>
-                    <p className="mt-2 text-sm text-slate-500">
-                      Try adjusting your search or filters.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={resetFilters}
-                      className="mt-4 cursor-pointer text-sm font-semibold text-blue-600 hover:text-blue-800"
-                    >
-                      Clear filters
-                    </button>
+                  <td
+                    colSpan="7"
+                    className="px-5 py-12 text-center text-gray-500"
+                  >
+                    Loading performance reviews...
                   </td>
                 </tr>
+              ) : filteredReviews.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="7"
+                    className="px-5 py-12 text-center text-gray-500"
+                  >
+                    No performance reviews found.
+                  </td>
+                </tr>
+              ) : (
+                filteredReviews.map((review) => (
+                  <tr key={review.id} className="transition hover:bg-gray-50">
+                    <td className="px-5 py-4 font-medium text-gray-800">
+                      {review.employee}
+                    </td>
+
+                    <td className="px-5 py-4 text-gray-600">
+                      {review.department || "—"}
+                    </td>
+
+                    <td className="px-5 py-4 text-gray-600">
+                      {review.reviewPeriod}
+                    </td>
+
+                    <td
+                      className={`px-5 py-4 font-semibold ${getScoreColor(
+                        review.score,
+                      )}`}
+                    >
+                      {review.score}%
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getRatingClasses(
+                          review.rating,
+                        )}`}
+                      >
+                        {review.rating}
+                      </span>
+                    </td>
+
+                    <td className="px-5 py-4 text-gray-600">
+                      {formatDate(review.reviewDate)}
+                    </td>
+
+                    <td className="px-5 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setViewingReview(review)}
+                          title="View review"
+                          className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-50"
+                        >
+                          <Eye size={17} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleEditReview(review)}
+                          title="Edit review"
+                          className="rounded-lg p-2 text-gray-600 transition hover:bg-gray-100"
+                        >
+                          <Pencil size={17} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeletingReview(review)}
+                          title="Delete review"
+                          className="rounded-lg p-2 text-red-600 transition hover:bg-red-50"
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
-
-        <div className="border-t border-slate-200 bg-slate-50 px-6 py-4">
-          <p className="text-sm text-slate-500">
-            Showing {filteredReviews.length} of {reviews.length} performance
-            reviews.
-          </p>
-        </div>
       </div>
 
-      <p className="text-xs text-slate-400">
-        Demonstration data only. Changes are held in local page state and reset
-        when the page is refreshed.
-      </p>
-
-      {/* Add / Edit Modal */}
-      {(isAdding || editingReview) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4">
-          <div className="my-auto w-full max-w-xl rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 p-6">
+      {/* Add / Edit Review Modal */}
+      {showFormModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+          <div className="my-auto w-full max-w-2xl rounded-xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-800">
-                  {isAdding
-                    ? "Add Performance Review"
-                    : "Edit Performance Review"}
+                <h2 className="text-lg font-semibold text-gray-800">
+                  {editingReview
+                    ? "Edit Performance Review"
+                    : "Add Performance Review"}
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-xs text-gray-500">
                   Enter the employee's review information.
                 </p>
               </div>
@@ -673,191 +682,195 @@ function Performance() {
               <button
                 type="button"
                 onClick={closeFormModal}
-                aria-label="Close form"
-                className="cursor-pointer rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
+                disabled={isSaving}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-50"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5 p-6">
-              <div>
-                <label
-                  htmlFor="performanceEmployee"
-                  className="mb-2 block text-sm font-medium text-slate-700"
-                >
-                  Employee
-                </label>
-                <select
-                  id="performanceEmployee"
-                  value={formData.employee}
-                  onChange={(event) =>
-                    setFormData((current) => ({
-                      ...current,
-                      employee: event.target.value,
-                    }))
-                  }
-                  required
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="">Select employee</option>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.name}>
-                      {employee.name} — {employee.department}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <form onSubmit={handleSubmit}>
+              <div className="max-h-[70vh] space-y-5 overflow-y-auto px-6 py-5">
+                {formError && (
+                  <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Employee and Review Period */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Employee <span className="text-red-500">*</span>
+                    </label>
+
+                    <select
+                      value={formData.employeeId}
+                      onChange={(event) =>
+                        setFormData((previous) => ({
+                          ...previous,
+                          employeeId: event.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                      <option value="">Select Employee</option>
+
+                      {employees.map((employee) => (
+                        <option key={employee.id} value={employee.id}>
+                          {employee.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Review Period <span className="text-red-500">*</span>
+                    </label>
+
+                    <input
+                      type="text"
+                      value={formData.reviewPeriod}
+                      onChange={(event) =>
+                        setFormData((previous) => ({
+                          ...previous,
+                          reviewPeriod: event.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Q4 2026"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                </div>
+
+                {/* Score and Review Date */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Performance Score (0–100){" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={formData.score}
+                      onChange={(event) =>
+                        setFormData((previous) => ({
+                          ...previous,
+                          score: event.target.value,
+                        }))
+                      }
+                      placeholder="Enter score"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+
+                    {formData.score !== "" &&
+                      Number.isFinite(Number(formData.score)) &&
+                      Number(formData.score) >= 0 &&
+                      Number(formData.score) <= 100 && (
+                        <p className="mt-2 text-xs text-gray-500">
+                          Rating:{" "}
+                          <span className="font-medium text-blue-600">
+                            {getRating(formData.score)}
+                          </span>
+                        </p>
+                      )}
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Review Date <span className="text-red-500">*</span>
+                    </label>
+
+                    <div className="relative">
+                      <CalendarDays
+                        size={17}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      />
+
+                      <input
+                        type="date"
+                        value={formData.reviewDate}
+                        onChange={(event) =>
+                          setFormData((previous) => ({
+                            ...previous,
+                            reviewDate: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-lg border border-gray-200 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Strengths */}
                 <div>
-                  <label
-                    htmlFor="reviewPeriod"
-                    className="mb-2 block text-sm font-medium text-slate-700"
-                  >
-                    Review Period
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Strengths <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    id="reviewPeriod"
-                    type="text"
-                    value={formData.reviewPeriod}
+
+                  <textarea
+                    rows="3"
+                    value={formData.strengths}
                     onChange={(event) =>
-                      setFormData((current) => ({
-                        ...current,
-                        reviewPeriod: event.target.value,
+                      setFormData((previous) => ({
+                        ...previous,
+                        strengths: event.target.value,
                       }))
                     }
-                    placeholder="e.g. Q3 2026"
-                    required
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    placeholder="Describe the employee's strengths and achievements..."
+                    className="w-full resize-y rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
 
+                {/* Improvements */}
                 <div>
-                  <label
-                    htmlFor="reviewDate"
-                    className="mb-2 block text-sm font-medium text-slate-700"
-                  >
-                    Review Date
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Areas for Improvement{" "}
+                    <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    id="reviewDate"
-                    type="date"
-                    value={formData.reviewDate}
+
+                  <textarea
+                    rows="3"
+                    value={formData.improvements}
                     onChange={(event) =>
-                      setFormData((current) => ({
-                        ...current,
-                        reviewDate: event.target.value,
+                      setFormData((previous) => ({
+                        ...previous,
+                        improvements: event.target.value,
                       }))
                     }
-                    required
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    placeholder="Describe areas where the employee can improve..."
+                    className="w-full resize-y rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
               </div>
 
-              <div>
-                <label
-                  htmlFor="performanceScore"
-                  className="mb-2 block text-sm font-medium text-slate-700"
-                >
-                  Performance Score (0–100)
-                </label>
-                <input
-                  id="performanceScore"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={formData.score}
-                  onChange={(event) =>
-                    setFormData((current) => ({
-                      ...current,
-                      score: event.target.value,
-                    }))
-                  }
-                  required
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-                {formData.score !== "" &&
-                  Number(formData.score) >= 0 &&
-                  Number(formData.score) <= 100 && (
-                    <p className="mt-2 text-sm text-slate-500">
-                      Rating:{" "}
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-semibold ${getRatingClasses(getRating(formData.score))}`}
-                      >
-                        {getRating(formData.score)}
-                      </span>
-                    </p>
-                  )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor="performanceStrengths"
-                  className="mb-2 block text-sm font-medium text-slate-700"
-                >
-                  Strengths
-                </label>
-                <textarea
-                  id="performanceStrengths"
-                  rows={3}
-                  value={formData.strengths}
-                  onChange={(event) =>
-                    setFormData((current) => ({
-                      ...current,
-                      strengths: event.target.value,
-                    }))
-                  }
-                  placeholder="Describe the employee's strengths..."
-                  required
-                  className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="performanceImprovements"
-                  className="mb-2 block text-sm font-medium text-slate-700"
-                >
-                  Areas for Improvement
-                </label>
-                <textarea
-                  id="performanceImprovements"
-                  rows={3}
-                  value={formData.improvements}
-                  onChange={(event) =>
-                    setFormData((current) => ({
-                      ...current,
-                      improvements: event.target.value,
-                    }))
-                  }
-                  placeholder="Describe areas for development..."
-                  required
-                  className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-
-              {formError && (
-                <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {formError}
-                </p>
-              )}
-
-              <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
+              {/* Form Actions */}
+              <div className="flex flex-col-reverse gap-3 border-t border-gray-100 px-6 py-4 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={closeFormModal}
-                  className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  disabled={isSaving}
+                  className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
                 >
                   Cancel
                 </button>
+
                 <button
                   type="submit"
-                  className="cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  disabled={isSaving}
+                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isAdding ? "Add Review" : "Save Changes"}
+                  {isSaving
+                    ? "Saving..."
+                    : editingReview
+                      ? "Update Review"
+                      : "Save Review"}
                 </button>
               </div>
             </form>
@@ -867,158 +880,185 @@ function Performance() {
 
       {/* View Review Modal */}
       {viewingReview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4">
-          <div className="my-auto w-full max-w-lg rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+          <div className="my-auto w-full max-w-xl rounded-xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-800">
+                <h2 className="text-lg font-semibold text-gray-800">
                   Performance Review Details
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Employee evaluation and development feedback.
+                <p className="mt-1 text-xs text-gray-500">
+                  Employee evaluation information
                 </p>
               </div>
+
               <button
                 type="button"
                 onClick={() => setViewingReview(null)}
-                aria-label="Close details"
-                className="cursor-pointer rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="space-y-5 p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800">
-                    {viewingReview.employee}
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {viewingReview.department}
-                  </p>
-                </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${getRatingClasses(viewingReview.rating)}`}
-                >
-                  {viewingReview.rating}
-                </span>
-              </div>
-
-              <div className="rounded-xl bg-slate-50 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-600">
-                    Performance Score
-                  </span>
-                  <span className="text-2xl font-bold text-slate-800">
-                    {viewingReview.score}%
-                  </span>
-                </div>
-                <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
-                  <div
-                    className={`h-full rounded-full ${getScoreColor(viewingReview.score)}`}
-                    style={{ width: `${viewingReview.score}%` }}
-                  />
-                </div>
-              </div>
-
+            <div className="space-y-5 px-6 py-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-medium text-slate-500">
-                    Review Period
+                  <p className="text-xs text-gray-500">Employee</p>
+                  <p className="mt-1 font-semibold text-gray-800">
+                    {viewingReview.employee}
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-800">
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500">Department</p>
+                  <p className="mt-1 font-semibold text-gray-800">
+                    {viewingReview.department || "—"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500">Review Period</p>
+                  <p className="mt-1 font-semibold text-gray-800">
                     {viewingReview.reviewPeriod}
                   </p>
                 </div>
+
                 <div>
-                  <p className="text-xs font-medium text-slate-500">
-                    Review Date
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-800">
+                  <p className="text-xs text-gray-500">Review Date</p>
+                  <p className="mt-1 font-semibold text-gray-800">
                     {formatDate(viewingReview.reviewDate)}
                   </p>
                 </div>
               </div>
 
+              <div className="rounded-lg bg-gray-50 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-600">
+                    Performance Score
+                  </p>
+                  <p
+                    className={`text-2xl font-bold ${getScoreColor(
+                      viewingReview.score,
+                    )}`}
+                  >
+                    {viewingReview.score}%
+                  </p>
+                </div>
+
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-200">
+                  <div
+                    className="h-full rounded-full bg-blue-600"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.max(0, Number(viewingReview.score)),
+                      )}%`,
+                    }}
+                  />
+                </div>
+
+                <div className="mt-3">
+                  <span
+                    className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getRatingClasses(
+                      viewingReview.rating,
+                    )}`}
+                  >
+                    {viewingReview.rating}
+                  </span>
+                </div>
+              </div>
+
               <div>
-                <p className="text-sm font-semibold text-slate-700">
+                <h3 className="text-sm font-semibold text-gray-800">
                   Strengths
-                </p>
-                <p className="mt-2 rounded-lg bg-green-50 p-4 text-sm leading-6 text-slate-600">
+                </h3>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-600">
                   {viewingReview.strengths}
                 </p>
               </div>
 
               <div>
-                <p className="text-sm font-semibold text-slate-700">
+                <h3 className="text-sm font-semibold text-gray-800">
                   Areas for Improvement
-                </p>
-                <p className="mt-2 rounded-lg bg-amber-50 p-4 text-sm leading-6 text-slate-600">
+                </h3>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-600">
                   {viewingReview.improvements}
                 </p>
               </div>
+            </div>
 
-              <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
-                <button
-                  type="button"
-                  onClick={() => openEditModal(viewingReview)}
-                  className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  Edit Review
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewingReview(null)}
-                  className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-                >
-                  Close
-                </button>
-              </div>
+            <div className="flex justify-end border-t border-gray-100 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setViewingReview(null)}
+                className="rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation Modal */}
       {deletingReview && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
-              <Trash2 size={24} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-red-50 p-3 text-red-600">
+                <AlertTriangle size={22} />
+              </div>
+
+              <div>
+                <h2 className="font-semibold text-gray-800">
+                  Delete Performance Review
+                </h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  This action cannot be undone.
+                </p>
+              </div>
             </div>
 
-            <h2 className="mt-4 text-xl font-bold text-slate-800">
-              Delete Performance Review?
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-slate-500">
+            <p className="mt-5 text-sm leading-6 text-gray-600">
               Are you sure you want to delete the performance review for{" "}
-              <span className="font-semibold text-slate-700">
+              <span className="font-semibold text-gray-800">
                 {deletingReview.employee}
               </span>
-              ? This action cannot be undone.
+              ?
             </p>
+
+            {pageError && (
+              <p className="mt-3 text-sm text-red-600">{pageError}</p>
+            )}
 
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setDeletingReview(null)}
-                className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                disabled={isDeleting}
+                className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancel
               </button>
+
               <button
                 type="button"
-                onClick={handleDelete}
-                className="cursor-pointer rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                onClick={handleDeleteReview}
+                disabled={isDeleting}
+                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Delete Review
+                {isDeleting ? "Deleting..." : "Delete Review"}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Footer */}
+      <p className="text-center text-xs text-gray-400">
+        Performance records are saved to the database.
+      </p>
     </div>
   );
 }

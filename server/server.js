@@ -15,6 +15,7 @@ import departmentRoutes from "./routes/departmentRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import leaveRoutes from "./routes/leaveRoutes.js";
+import performanceRoutes from "./routes/performanceRoutes.js";
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/leave", leaveRoutes);
+app.use("/api/performance", performanceRoutes);
 
 app.get("/api/health", (req, res) => {
     res.status(200).json({

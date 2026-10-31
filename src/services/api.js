@@ -734,3 +734,110 @@ export async function deleteLeaveRequest(leaveId) {
 
     return result;
 }
+
+// ===============================
+// PERFORMANCE API
+// ===============================
+
+// Convert a MongoDB performance review into the format used by Performance.jsx.
+function mapPerformanceReview(review) {
+    return {
+        id: review._id,
+        employeeId: review.employee?._id || "",
+        employee: review.employee?.name || "",
+        department: review.employee?.department || review.department || "",
+        reviewPeriod: review.reviewPeriod,
+        score: review.score,
+        rating: review.rating,
+        strengths: review.strengths,
+        improvements: review.improvements,
+        reviewDate: review.reviewDate
+            ? review.reviewDate.split("T")[0]
+            : "",
+    };
+}
+
+// Get all performance reviews.
+export async function getPerformanceReviews() {
+    const response = await fetch(`${API_BASE_URL}/api/performance`, {
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to fetch performance reviews.");
+    }
+
+    return result.data.map(mapPerformanceReview);
+}
+
+// Create a performance review using the employee's MongoDB ID.
+export async function createPerformanceReview(reviewData) {
+    const response = await fetch(`${API_BASE_URL}/api/performance`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+            employeeId: reviewData.employeeId,
+            reviewPeriod: reviewData.reviewPeriod,
+            score: reviewData.score,
+            strengths: reviewData.strengths,
+            improvements: reviewData.improvements,
+            reviewDate: reviewData.reviewDate,
+        }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to create performance review.");
+    }
+
+    return mapPerformanceReview(result.data);
+}
+
+// Update a performance review using the employee's MongoDB ID.
+export async function updatePerformanceReview(reviewId, reviewData) {
+    const response = await fetch(`${API_BASE_URL}/api/performance/${reviewId}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+            employeeId: reviewData.employeeId,
+            reviewPeriod: reviewData.reviewPeriod,
+            score: reviewData.score,
+            strengths: reviewData.strengths,
+            improvements: reviewData.improvements,
+            reviewDate: reviewData.reviewDate,
+        }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update performance review.");
+    }
+
+    return mapPerformanceReview(result.data);
+}
+
+// Delete a performance review.
+export async function deletePerformanceReview(reviewId) {
+    const response = await fetch(`${API_BASE_URL}/api/performance/${reviewId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to delete performance review.");
+    }
+
+    return result;
+}
