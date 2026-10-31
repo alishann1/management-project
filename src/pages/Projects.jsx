@@ -2,6 +2,8 @@ import { CalendarDays, User, Building2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   getProjects,
+  getEmployees,
+  getDepartments,
   createProject,
   updateProject,
   deleteProject,
@@ -18,7 +20,6 @@ const emptyProject = {
   progress: 0,
 };
 
-// Convert MongoDB project records into the format used by this page.
 const mapProject = (project) => ({
   id: project._id || project.id,
   name: project.name,
@@ -34,10 +35,19 @@ const mapProject = (project) => ({
 const getProjectStatus = (progress) =>
   progress === 100 ? "Completed" : progress > 0 ? "In Progress" : "Planning";
 
+const getDepartmentName = (department) => {
+  if (typeof department === "string") return department;
+  return department?.name || "";
+};
+
 function Projects() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [deletingProject, setDeletingProject] = useState(null);
+
   const [projectList, setProjectList] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [newProject, setNewProject] = useState({ ...emptyProject });
@@ -47,26 +57,47 @@ function Projects() {
   const [pageError, setPageError] = useState("");
   const [actionError, setActionError] = useState("");
 
-  // Load projects from the backend.
-  const loadProjects = async () => {
+  // Load projects, employees and departments from MongoDB.
+  const loadPageData = async () => {
     try {
       setLoading(true);
       setPageError("");
 
-      const projects = await getProjects();
-      setProjectList(projects);
+      const [projects, employeeData, departmentData] = await Promise.all([
+        getProjects(),
+        getEmployees(),
+        getDepartments(),
+      ]);
+
+      setProjectList(projects.map(mapProject));
+      setEmployees(employeeData);
+      setDepartments(departmentData);
     } catch (error) {
-      setPageError(error.message || "Failed to load projects.");
+      setPageError(error.message || "Failed to load project information.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadProjects();
+    loadPageData();
   }, []);
 
-  // Validate common project fields before sending them to the backend.
+  // Return employees belonging to the selected department.
+  const getDepartmentEmployees = (department) => {
+    if (!department) return [];
+
+    return employees.filter((employee) => {
+      const employeeDepartment = getDepartmentName(employee.department);
+
+      return (
+        employeeDepartment.trim().toLowerCase() ===
+        department.trim().toLowerCase()
+      );
+    });
+  };
+
+  // Validate project fields.
   const validateProject = (project) => {
     if (
       !project.name.trim() ||
@@ -89,6 +120,16 @@ function Projects() {
       return "Progress must be a number between 0 and 100.";
     }
 
+    const validManagers = getDepartmentEmployees(project.department);
+
+    const managerExists = validManagers.some(
+      (employee) => employee.name === project.manager,
+    );
+
+    if (!managerExists) {
+      return "Please select a valid employee from the selected department.";
+    }
+
     return "";
   };
 
@@ -107,7 +148,7 @@ function Projects() {
     };
   };
 
-  // Create a project in MongoDB.
+  // Create a project.
   const handleAddProject = async (e) => {
     e.preventDefault();
 
@@ -141,7 +182,7 @@ function Projects() {
     }
   };
 
-  // Update an existing project in MongoDB.
+  // Update an existing project.
   const handleEditProject = async (e) => {
     e.preventDefault();
 
@@ -159,6 +200,7 @@ function Projects() {
       setActionError("");
 
       const projectData = prepareProject(editingProject);
+
       const updatedProject = await updateProject(
         editingProject.id,
         projectData,
@@ -184,7 +226,7 @@ function Projects() {
     }
   };
 
-  // Delete a project from MongoDB.
+  // Delete a project.
   const handleDeleteProject = async () => {
     if (saving || !deletingProject) return;
 
@@ -239,6 +281,31 @@ function Projects() {
     setActionError("");
   };
 
+  // Department change clears the previous manager selection.
+  const handleAddDepartmentChange = (department) => {
+    setNewProject((current) => ({
+      ...current,
+      department,
+      manager: "",
+    }));
+  };
+
+  const handleEditDepartmentChange = (department) => {
+    setEditingProject((current) => ({
+      ...current,
+      department,
+      manager: "",
+    }));
+  };
+
+  const departmentEmployeesForAdd = getDepartmentEmployees(
+    newProject.department,
+  );
+
+  const departmentEmployeesForEdit = editingProject
+    ? getDepartmentEmployees(editingProject.department)
+    : [];
+
   return (
     <div>
       {/* Page Header */}
@@ -247,7 +314,6 @@ function Projects() {
           <h1 className="text-3xl font-bold text-slate-800">
             Project Management
           </h1>
-
           <p className="mt-1 text-sm text-slate-500">
             Plan, organize and monitor organizational projects.
           </p>
@@ -271,10 +337,9 @@ function Projects() {
           className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
         >
           <span>{pageError}</span>
-
           <button
             type="button"
-            onClick={loadProjects}
+            onClick={loadPageData}
             disabled={loading}
             className="rounded-lg border border-red-300 px-4 py-2 font-medium hover:bg-red-100 disabled:opacity-60"
           >
@@ -308,11 +373,9 @@ function Projects() {
               <h2 className="text-lg font-semibold text-slate-800">
                 No projects yet
               </h2>
-
               <p className="mt-2 text-sm text-slate-500">
                 Add a project to start managing your organizational work.
               </p>
-
               <button
                 type="button"
                 onClick={openAddModal}
@@ -328,18 +391,15 @@ function Projects() {
                   key={project.id}
                   className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
                 >
-                  {/* Project Name */}
                   <div>
                     <h2 className="text-xl font-bold text-slate-800">
                       {project.name}
                     </h2>
-
                     <p className="mt-2 text-sm leading-6 text-slate-500">
                       {project.description}
                     </p>
                   </div>
 
-                  {/* Status */}
                   <div className="mt-4">
                     <span
                       className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
@@ -354,7 +414,6 @@ function Projects() {
                     </span>
                   </div>
 
-                  {/* Project Information */}
                   <div className="mt-5 space-y-3">
                     <div className="flex items-center gap-3 text-sm text-slate-600">
                       <Building2 size={17} className="text-slate-400" />
@@ -374,13 +433,11 @@ function Projects() {
                     </div>
                   </div>
 
-                  {/* Progress */}
                   <div className="mt-6">
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-sm font-medium text-slate-700">
                         Progress
                       </span>
-
                       <span className="text-sm font-semibold text-slate-800">
                         {project.progress}%
                       </span>
@@ -390,10 +447,9 @@ function Projects() {
                       <div
                         className="h-full rounded-full bg-blue-600 transition-all"
                         style={{ width: `${project.progress}%` }}
-                      ></div>
+                      />
                     </div>
 
-                    {/* Project Actions */}
                     <div className="mt-5 grid grid-cols-3 gap-3">
                       <button
                         type="button"
@@ -444,7 +500,6 @@ function Projects() {
                 <h2 className="text-2xl font-bold text-slate-800">
                   {selectedProject.name}
                 </h2>
-
                 <p className="mt-1 text-sm text-slate-500">Project Details</p>
               </div>
 
@@ -459,24 +514,20 @@ function Projects() {
             </div>
 
             <div className="mt-6 space-y-4">
-              {/* Description */}
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                   Description
                 </p>
-
                 <p className="mt-1 text-sm text-slate-700">
                   {selectedProject.description}
                 </p>
               </div>
 
-              {/* Department, Manager, Dates */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                     Department
                   </p>
-
                   <p className="mt-1 text-sm font-medium text-slate-700">
                     {selectedProject.department}
                   </p>
@@ -486,7 +537,6 @@ function Projects() {
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                     Manager
                   </p>
-
                   <p className="mt-1 text-sm font-medium text-slate-700">
                     {selectedProject.manager}
                   </p>
@@ -496,7 +546,6 @@ function Projects() {
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                     Start Date
                   </p>
-
                   <p className="mt-1 text-sm font-medium text-slate-700">
                     {selectedProject.startDate}
                   </p>
@@ -506,35 +555,28 @@ function Projects() {
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                     Due Date
                   </p>
-
                   <p className="mt-1 text-sm font-medium text-slate-700">
                     {selectedProject.dueDate}
                   </p>
                 </div>
               </div>
 
-              {/* Progress */}
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-medium text-slate-700">Progress</p>
-
                   <p className="text-sm font-semibold text-slate-800">
                     {selectedProject.progress}%
                   </p>
                 </div>
-
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                   <div
                     className="h-full rounded-full bg-blue-600"
-                    style={{
-                      width: `${selectedProject.progress}%`,
-                    }}
-                  ></div>
+                    style={{ width: `${selectedProject.progress}%` }}
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Close Button */}
             <div className="mt-6 flex justify-end">
               <button
                 type="button"
@@ -550,15 +592,13 @@ function Projects() {
 
       {/* Add Project Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-            {/* Modal Header */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+          <div className="my-auto w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-slate-800">
                   Add Project
                 </h2>
-
                 <p className="mt-1 text-sm text-slate-500">
                   Create a new organizational project.
                 </p>
@@ -575,7 +615,6 @@ function Projects() {
               </button>
             </div>
 
-            {/* Add Project Error */}
             {actionError && (
               <div
                 role="alert"
@@ -585,14 +624,11 @@ function Projects() {
               </div>
             )}
 
-            {/* Add Project Form */}
             <form onSubmit={handleAddProject} className="mt-6 space-y-5">
-              {/* Project Name */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   Project Name
                 </label>
-
                 <input
                   type="text"
                   value={newProject.name}
@@ -609,12 +645,10 @@ function Projects() {
                 />
               </div>
 
-              {/* Description */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   Description
                 </label>
-
                 <textarea
                   value={newProject.description}
                   onChange={(e) =>
@@ -633,42 +667,34 @@ function Projects() {
 
               {/* Department and Manager */}
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                {/* Department */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Department
                   </label>
-
                   <select
                     value={newProject.department}
-                    onChange={(e) =>
-                      setNewProject({
-                        ...newProject,
-                        department: e.target.value,
-                      })
-                    }
+                    onChange={(e) => handleAddDepartmentChange(e.target.value)}
                     required
                     disabled={saving}
                     className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
                   >
                     <option value="">Select department</option>
-                    <option value="IT">IT</option>
-                    <option value="Human Resources">Human Resources</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Administration">Administration</option>
+                    {departments.map((department) => (
+                      <option
+                        key={department._id || department.id || department.name}
+                        value={department.name}
+                      >
+                        {department.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                {/* Manager */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Project Manager
                   </label>
-
-                  <input
-                    type="text"
+                  <select
                     value={newProject.manager}
                     onChange={(e) =>
                       setNewProject({
@@ -676,22 +702,41 @@ function Projects() {
                         manager: e.target.value,
                       })
                     }
-                    placeholder="Enter manager name"
                     required
-                    disabled={saving}
-                    className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
-                  />
+                    disabled={saving || !newProject.department}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
+                  >
+                    <option value="">
+                      {!newProject.department
+                        ? "Select department first"
+                        : departmentEmployeesForAdd.length === 0
+                          ? "No employees in this department"
+                          : "Select project manager"}
+                    </option>
+                    {departmentEmployeesForAdd.map((employee) => (
+                      <option
+                        key={employee._id || employee.id || employee.name}
+                        value={employee.name}
+                      >
+                        {employee.name}
+                      </option>
+                    ))}
+                  </select>
+                  {newProject.department &&
+                    departmentEmployeesForAdd.length === 0 && (
+                      <p className="mt-1.5 text-xs text-amber-600">
+                        There are no employees in this department.
+                      </p>
+                    )}
                 </div>
               </div>
 
               {/* Dates */}
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                {/* Start Date */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Start Date
                   </label>
-
                   <input
                     type="date"
                     value={newProject.startDate}
@@ -707,12 +752,10 @@ function Projects() {
                   />
                 </div>
 
-                {/* Due Date */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Due Date
                   </label>
-
                   <input
                     type="date"
                     value={newProject.dueDate}
@@ -732,12 +775,10 @@ function Projects() {
 
               {/* Status and Progress */}
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                {/* Status */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Status
                   </label>
-
                   <select
                     value={newProject.status}
                     onChange={(e) =>
@@ -755,12 +796,10 @@ function Projects() {
                   </select>
                 </div>
 
-                {/* Progress */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Progress (%)
                   </label>
-
                   <input
                     type="number"
                     min="0"
@@ -780,7 +819,6 @@ function Projects() {
                 </div>
               </div>
 
-              {/* Form Buttons */}
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
@@ -790,7 +828,6 @@ function Projects() {
                 >
                   Cancel
                 </button>
-
                 <button
                   type="submit"
                   disabled={saving}
@@ -806,15 +843,13 @@ function Projects() {
 
       {/* Edit Project Modal */}
       {editingProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-            {/* Modal Header */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+          <div className="my-auto w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-slate-800">
                   Edit Project
                 </h2>
-
                 <p className="mt-1 text-sm text-slate-500">
                   Update the project information.
                 </p>
@@ -831,7 +866,6 @@ function Projects() {
               </button>
             </div>
 
-            {/* Edit Project Error */}
             {actionError && (
               <div
                 role="alert"
@@ -841,14 +875,11 @@ function Projects() {
               </div>
             )}
 
-            {/* Edit Project Form */}
             <form onSubmit={handleEditProject} className="mt-6 space-y-5">
-              {/* Project Name */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   Project Name
                 </label>
-
                 <input
                   type="text"
                   value={editingProject.name}
@@ -864,12 +895,10 @@ function Projects() {
                 />
               </div>
 
-              {/* Description */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
                   Description
                 </label>
-
                 <textarea
                   value={editingProject.description}
                   onChange={(e) =>
@@ -887,42 +916,34 @@ function Projects() {
 
               {/* Department and Manager */}
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                {/* Department */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Department
                   </label>
-
                   <select
                     value={editingProject.department}
-                    onChange={(e) =>
-                      setEditingProject({
-                        ...editingProject,
-                        department: e.target.value,
-                      })
-                    }
+                    onChange={(e) => handleEditDepartmentChange(e.target.value)}
                     required
                     disabled={saving}
                     className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
                   >
                     <option value="">Select department</option>
-                    <option value="IT">IT</option>
-                    <option value="Human Resources">Human Resources</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Administration">Administration</option>
+                    {departments.map((department) => (
+                      <option
+                        key={department._id || department.id || department.name}
+                        value={department.name}
+                      >
+                        {department.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                {/* Manager */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Project Manager
                   </label>
-
-                  <input
-                    type="text"
+                  <select
                     value={editingProject.manager}
                     onChange={(e) =>
                       setEditingProject({
@@ -931,20 +952,40 @@ function Projects() {
                       })
                     }
                     required
-                    disabled={saving}
-                    className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
-                  />
+                    disabled={saving || !editingProject.department}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
+                  >
+                    <option value="">
+                      {!editingProject.department
+                        ? "Select department first"
+                        : departmentEmployeesForEdit.length === 0
+                          ? "No employees in this department"
+                          : "Select project manager"}
+                    </option>
+                    {departmentEmployeesForEdit.map((employee) => (
+                      <option
+                        key={employee._id || employee.id || employee.name}
+                        value={employee.name}
+                      >
+                        {employee.name}
+                      </option>
+                    ))}
+                  </select>
+                  {editingProject.department &&
+                    departmentEmployeesForEdit.length === 0 && (
+                      <p className="mt-1.5 text-xs text-amber-600">
+                        There are no employees in this department.
+                      </p>
+                    )}
                 </div>
               </div>
 
               {/* Dates */}
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                {/* Start Date */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Start Date
                   </label>
-
                   <input
                     type="date"
                     value={editingProject.startDate}
@@ -961,12 +1002,10 @@ function Projects() {
                   />
                 </div>
 
-                {/* Due Date */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Due Date
                   </label>
-
                   <input
                     type="date"
                     value={editingProject.dueDate}
@@ -986,12 +1025,10 @@ function Projects() {
 
               {/* Status and Progress */}
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                {/* Status */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Status
                   </label>
-
                   <select
                     value={editingProject.status}
                     onChange={(e) =>
@@ -1009,12 +1046,10 @@ function Projects() {
                   </select>
                 </div>
 
-                {/* Progress */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-slate-700">
                     Progress (%)
                   </label>
-
                   <input
                     type="number"
                     min="0"
@@ -1034,7 +1069,6 @@ function Projects() {
                 </div>
               </div>
 
-              {/* Form Buttons */}
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
@@ -1044,7 +1078,6 @@ function Projects() {
                 >
                   Cancel
                 </button>
-
                 <button
                   type="submit"
                   disabled={saving}

@@ -1,10 +1,21 @@
 
 import express from "express";
 import Project from "../models/Project.js";
+import Employee from "../models/Employee.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import { authorizeRole } from "../middleware/authorizeRole.js";
 
 const router = express.Router();
+
+// Check whether the selected manager belongs to the selected department.
+const validateProjectManager = async (manager, department) => {
+    const employee = await Employee.findOne({
+        name: manager.trim(),
+        department: department.trim(),
+    });
+
+    return employee;
+};
 
 // GET all projects
 router.get(
@@ -60,6 +71,16 @@ router.post(
                 });
             }
 
+            if (
+                Number.isNaN(new Date(startDate).getTime()) ||
+                Number.isNaN(new Date(dueDate).getTime())
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Please provide valid project dates.",
+                });
+            }
+
             if (new Date(dueDate) < new Date(startDate)) {
                 return res.status(400).json({
                     success: false,
@@ -67,11 +88,25 @@ router.post(
                 });
             }
 
+            // Verify that the manager exists in the selected department.
+            const employee = await validateProjectManager(
+                manager,
+                department
+            );
+
+            if (!employee) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "The selected project manager does not belong to the selected department.",
+                });
+            }
+
             const project = await Project.create({
                 name: name.trim(),
                 description: description.trim(),
                 department: department.trim(),
-                manager: manager.trim(),
+                manager: employee.name,
                 status,
                 startDate,
                 dueDate,
@@ -131,10 +166,34 @@ router.put(
                 });
             }
 
+            if (
+                Number.isNaN(new Date(startDate).getTime()) ||
+                Number.isNaN(new Date(dueDate).getTime())
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Please provide valid project dates.",
+                });
+            }
+
             if (new Date(dueDate) < new Date(startDate)) {
                 return res.status(400).json({
                     success: false,
                     message: "Due date cannot be earlier than start date.",
+                });
+            }
+
+            // Verify that the manager exists in the selected department.
+            const employee = await validateProjectManager(
+                manager,
+                department
+            );
+
+            if (!employee) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "The selected project manager does not belong to the selected department.",
                 });
             }
 
@@ -144,7 +203,7 @@ router.put(
                     name: name.trim(),
                     description: description.trim(),
                     department: department.trim(),
-                    manager: manager.trim(),
+                    manager: employee.name,
                     status,
                     startDate,
                     dueDate,
