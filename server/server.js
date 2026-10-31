@@ -10,6 +10,8 @@ import employeeAccountRoutes from "./routes/employeeAccountRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import goalRoutes from "./routes/goalRoutes.js";
 import departmentRoutes from "./routes/departmentRoutes.js";
+import projectRoutes from "./routes/projectRoutes.js";
+import attendanceRoutes from "./routes/attendanceRoutes.js";
 
 dotenv.config();
 
@@ -25,7 +27,10 @@ app.use("/api/password-setup", passwordSetupRoutes);
 app.use("/api/employee-accounts", employeeAccountRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/goals", goalRoutes);
+app.use("/api/projects", projectRoutes);
 app.use("/api/departments", departmentRoutes);
+app.use("/api/attendance", attendanceRoutes);
+
 app.get("/api/health", (req, res) => {
     res.status(200).json({
         success: true,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Clock3,
@@ -10,92 +10,34 @@ import {
   Search,
   ClipboardCheck,
 } from "lucide-react";
-import employees from "../data/employees";
 
-const today = "2026-10-10";
+import {
+  getEmployees,
+  initializeAttendance,
+  updateAttendance,
+} from "../services/api";
 
-const initialAttendance = [
-  {
-    id: 1,
-    employeeId: 1,
-    name: "Ali Khan",
-    department: "IT",
-    date: today,
-    checkIn: "09:02 AM",
-    checkOut: "05:05 PM",
-    status: "Present",
-  },
-  {
-    id: 2,
-    employeeId: 2,
-    name: "Sara Ahmed",
-    department: "Human Resources",
-    date: today,
-    checkIn: "08:55 AM",
-    checkOut: "05:00 PM",
-    status: "Present",
-  },
-  {
-    id: 3,
-    employeeId: 3,
-    name: "Ahmed Shah",
-    department: "Finance",
-    date: today,
-    checkIn: "09:10 AM",
-    checkOut: "05:12 PM",
-    status: "Present",
-  },
-  {
-    id: 4,
-    employeeId: 4,
-    name: "Fatima Ali",
-    department: "Marketing",
-    date: today,
-    checkIn: "—",
-    checkOut: "—",
-    status: "On Leave",
-  },
-  {
-    id: 5,
-    employeeId: 5,
-    name: "Usman Khan",
-    department: "IT",
-    date: today,
-    checkIn: "09:00 AM",
-    checkOut: "05:08 PM",
-    status: "Present",
-  },
-  {
-    id: 6,
-    employeeId: 6,
-    name: "Ayesha Malik",
-    department: "Operations",
-    date: today,
-    checkIn: "08:50 AM",
-    checkOut: "05:02 PM",
-    status: "Present",
-  },
-  {
-    id: 7,
-    employeeId: 7,
-    name: "Hassan Ali",
-    department: "IT",
-    date: today,
-    checkIn: "—",
-    checkOut: "—",
-    status: "Absent",
-  },
-  {
-    id: 8,
-    employeeId: 8,
-    name: "Maryam Shah",
-    department: "Human Resources",
-    date: today,
-    checkIn: "—",
-    checkOut: "—",
-    status: "On Leave",
-  },
-];
+// Get today's date in local YYYY-MM-DD format.
+const getToday = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+// Convert MongoDB attendance records into frontend records.
+const mapAttendance = (record) => ({
+  id: record._id,
+  employeeId: record.employee?._id,
+  name: record.employee?.name || "Unknown Employee",
+  department: record.employee?.department || "Unassigned",
+  date: record.date,
+  checkIn: record.checkIn || "—",
+  checkOut: record.checkOut || "—",
+  status: record.status,
+});
 
 function getStatusClasses(status) {
   if (status === "Present") {
@@ -110,17 +52,52 @@ function getStatusClasses(status) {
 }
 
 function Attendance() {
-  const [attendance, setAttendance] = useState(initialAttendance);
+  const [attendance, setAttendance] = useState([]);
+  const [employees, setEmployees] = useState([]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("All");
   const [selectedStatus, setSelectedStatus] = useState("All");
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState(getToday);
 
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
+  const [error, setError] = useState("");
+
+  // Load employees and initialize attendance for the selected date.
+  const loadAttendance = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const [employeeData, attendanceData] = await Promise.all([
+        getEmployees(),
+        initializeAttendance(selectedDate),
+      ]);
+
+      setEmployees(employeeData);
+      setAttendance(attendanceData.map(mapAttendance));
+    } catch (err) {
+      setError(err.message || "Failed to load attendance records.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAttendance();
+  }, [selectedDate]);
+
+  // Get available departments from employee data.
   const departments = useMemo(
-    () => [...new Set(employees.map((employee) => employee.department))].sort(),
-    [],
+    () =>
+      [...new Set(employees.map((employee) => employee.department))]
+        .filter(Boolean)
+        .sort(),
+    [employees],
   );
 
+  // Apply search and filters.
   const filteredAttendance = useMemo(() => {
     return attendance.filter((record) => {
       const matchesSearch = record.name
@@ -134,18 +111,11 @@ function Attendance() {
       const matchesStatus =
         selectedStatus === "All" || record.status === selectedStatus;
 
-      const matchesDate = record.date === selectedDate;
-
-      return matchesSearch && matchesDepartment && matchesStatus && matchesDate;
+      return matchesSearch && matchesDepartment && matchesStatus;
     });
-  }, [
-    attendance,
-    searchTerm,
-    selectedDepartment,
-    selectedStatus,
-    selectedDate,
-  ]);
+  }, [attendance, searchTerm, selectedDepartment, selectedStatus]);
 
+  // Calculate summary values.
   const presentCount = filteredAttendance.filter(
     (record) => record.status === "Present",
   ).length;
@@ -163,38 +133,35 @@ function Attendance() {
   const attendanceRate =
     eligibleCount > 0 ? Math.round((presentCount / eligibleCount) * 100) : 0;
 
-  const updateAttendanceStatus = (recordId, newStatus) => {
-    setAttendance((currentAttendance) =>
-      currentAttendance.map((record) => {
-        if (record.id !== recordId) {
-          return record;
-        }
+  // Save attendance status to MongoDB.
+  const updateAttendanceStatus = async (recordId, newStatus) => {
+    try {
+      setSavingId(recordId);
+      setError("");
 
-        return {
-          ...record,
-          status: newStatus,
-          checkIn:
-            newStatus === "Present"
-              ? record.checkIn === "—"
-                ? "09:00 AM"
-                : record.checkIn
-              : "—",
-          checkOut:
-            newStatus === "Present"
-              ? record.checkOut === "—"
-                ? "05:00 PM"
-                : record.checkOut
-              : "—",
-        };
-      }),
-    );
+      const updatedRecord = await updateAttendance(recordId, {
+        status: newStatus,
+      });
+
+      const mappedRecord = mapAttendance(updatedRecord);
+
+      setAttendance((currentAttendance) =>
+        currentAttendance.map((record) =>
+          record.id === recordId ? mappedRecord : record,
+        ),
+      );
+    } catch (err) {
+      setError(err.message || "Failed to update attendance.");
+    } finally {
+      setSavingId(null);
+    }
   };
 
   const resetFilters = () => {
     setSearchTerm("");
     setSelectedDepartment("All");
     setSelectedStatus("All");
-    setSelectedDate(today);
+    setSelectedDate(getToday());
   };
 
   const summaryCards = [
@@ -246,6 +213,21 @@ function Attendance() {
           Daily Attendance
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-red-700">{error}</p>
+          <button
+            type="button"
+            onClick={loadAttendance}
+            disabled={loading}
+            className="cursor-pointer text-sm font-semibold text-red-700 hover:text-red-900 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Try again
+          </button>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
@@ -393,81 +375,107 @@ function Attendance() {
             </thead>
 
             <tbody className="divide-y divide-slate-100">
-              {filteredAttendance.map((record) => (
-                <tr key={record.id} className="transition hover:bg-slate-50">
-                  <td className="px-6 py-4">
-                    <div className="font-semibold text-slate-800">
-                      {record.name}
-                    </div>
-                    <div className="mt-1 text-xs text-slate-500">
-                      {record.date}
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {record.department}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Clock3 size={16} className="text-slate-400" />
-                      {record.checkIn}
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Clock3 size={16} className="text-slate-400" />
-                      {record.checkOut}
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(record.status)}`}
-                    >
-                      {record.status}
-                    </span>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <select
-                      value={record.status}
-                      onChange={(event) =>
-                        updateAttendanceStatus(record.id, event.target.value)
-                      }
-                      aria-label={`Update attendance status for ${record.name}`}
-                      className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    >
-                      <option value="Present">Present</option>
-                      <option value="Absent">Absent</option>
-                      <option value="On Leave">On Leave</option>
-                    </select>
-                  </td>
-                </tr>
-              ))}
-
-              {filteredAttendance.length === 0 && (
+              {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-16 text-center">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
-                      <CalendarDays size={26} className="text-slate-400" />
-                    </div>
-                    <h3 className="mt-4 text-base font-semibold text-slate-800">
-                      No attendance records found
-                    </h3>
-                    <p className="mt-2 text-sm text-slate-500">
-                      Try another date or adjust your search and filters.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={resetFilters}
-                      className="mt-4 cursor-pointer text-sm font-semibold text-blue-600 hover:text-blue-800"
-                    >
-                      Clear filters
-                    </button>
+                  <td
+                    colSpan={6}
+                    className="px-6 py-16 text-center text-sm text-slate-500"
+                  >
+                    Loading attendance records...
                   </td>
                 </tr>
+              ) : (
+                <>
+                  {filteredAttendance.map((record) => (
+                    <tr
+                      key={record.id}
+                      className="transition hover:bg-slate-50"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-slate-800">
+                          {record.name}
+                        </div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {record.date}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {record.department}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Clock3 size={16} className="text-slate-400" />
+                          {record.checkIn}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Clock3 size={16} className="text-slate-400" />
+                          {record.checkOut}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(record.status)}`}
+                        >
+                          {record.status}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <select
+                          value={record.status}
+                          disabled={savingId === record.id || savingId !== null}
+                          onChange={(event) =>
+                            updateAttendanceStatus(
+                              record.id,
+                              event.target.value,
+                            )
+                          }
+                          aria-label={`Update attendance status for ${record.name}`}
+                          className="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="Present">Present</option>
+                          <option value="Absent">Absent</option>
+                          <option value="On Leave">On Leave</option>
+                        </select>
+
+                        {savingId === record.id && (
+                          <p className="mt-1 text-xs text-slate-400">
+                            Saving...
+                          </p>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+
+                  {filteredAttendance.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-16 text-center">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
+                          <CalendarDays size={26} className="text-slate-400" />
+                        </div>
+                        <h3 className="mt-4 text-base font-semibold text-slate-800">
+                          No attendance records found
+                        </h3>
+                        <p className="mt-2 text-sm text-slate-500">
+                          Try another date or adjust your search and filters.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={resetFilters}
+                          className="mt-4 cursor-pointer text-sm font-semibold text-blue-600 hover:text-blue-800"
+                        >
+                          Clear filters
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+                </>
               )}
             </tbody>
           </table>
@@ -476,16 +484,15 @@ function Attendance() {
         {/* Table Footer */}
         <div className="border-t border-slate-200 bg-slate-50 px-6 py-4">
           <p className="text-sm text-slate-500">
-            Showing {filteredAttendance.length} of{" "}
-            {attendance.filter((record) => record.date === selectedDate).length}{" "}
-            records for the selected date.
+            Showing {filteredAttendance.length} of {attendance.length} records
+            for the selected date.
           </p>
         </div>
       </div>
 
       <p className="text-xs text-slate-400">
-        Demonstration data only. Attendance changes are held in local page state
-        and will reset when the page is refreshed.
+        Attendance records are saved in the database and remain available after
+        refreshing the page.
       </p>
     </div>
   );

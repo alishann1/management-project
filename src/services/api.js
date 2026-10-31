@@ -412,3 +412,181 @@ export async function deleteDepartment(departmentId) {
     return result;
 }
 
+
+export async function getProjects() {
+    const response = await fetch(`${API_BASE_URL}/api/projects`, {
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to fetch projects.");
+    }
+
+    return result.data.map((project) => ({
+        id: project._id,
+        name: project.name,
+        description: project.description,
+        department: project.department,
+        manager: project.manager,
+        status: project.status,
+        startDate: project.startDate
+            ? project.startDate.split("T")[0]
+            : "",
+        dueDate: project.dueDate
+            ? project.dueDate.split("T")[0]
+            : "",
+        progress: project.progress,
+    }));
+}
+
+export async function createProject(projectData) {
+    const response = await fetch(`${API_BASE_URL}/api/projects`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify(projectData),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to create project.");
+    }
+
+    return result.data;
+}
+
+export async function updateProject(projectId, projectData) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/projects/${projectId}`,
+        {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                ...getAuthHeaders(),
+            },
+            body: JSON.stringify(projectData),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update project.");
+    }
+
+    return result.data;
+}
+
+export async function deleteProject(projectId) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/projects/${projectId}`,
+        {
+            method: "DELETE",
+            headers: getAuthHeaders(),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to delete project.");
+    }
+
+    return result;
+}
+
+// ===============================
+// ATTENDANCE API
+// ===============================
+
+export async function getAttendance() {
+    const response = await fetch(`${API_BASE_URL}/api/attendance`, {
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to fetch attendance.");
+    }
+
+    return result.data;
+}
+
+export async function createAttendance(attendanceData) {
+    const response = await fetch(`${API_BASE_URL}/api/attendance`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify(attendanceData),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to create attendance.");
+    }
+
+    return result.data;
+}
+
+export async function updateAttendance(id, attendanceData) {
+    const response = await fetch(`${API_BASE_URL}/api/attendance/${id}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify(attendanceData),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update attendance.");
+    }
+
+    return result.data;
+}
+
+export async function deleteAttendance(id) {
+    const response = await fetch(`${API_BASE_URL}/api/attendance/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to delete attendance.");
+    }
+
+    return result;
+}
+
+export async function initializeAttendance(date) {
+    const response = await fetch(`${API_BASE_URL}/api/attendance/initialize`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ date }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to initialize attendance.");
+    }
+
+    return result.data;
+}
+
