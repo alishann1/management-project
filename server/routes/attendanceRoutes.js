@@ -1,14 +1,18 @@
+
 import express from "express";
 import mongoose from "mongoose";
 
 import Attendance from "../models/Attendance.js";
 import Employee from "../models/Employee.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
+import { authorizeRole } from "../middleware/authorizeRole.js";
 
 const router = express.Router();
 
 // Protect all attendance routes.
+// Only Managers can access the current attendance management endpoints.
 router.use(authenticateToken);
+router.use(authorizeRole("Manager"));
 
 // Initialize attendance for a selected date.
 // Every active employee without an attendance record gets marked Absent.
