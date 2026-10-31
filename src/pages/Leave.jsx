@@ -1,119 +1,22 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Users,
   Clock,
   CheckCircle2,
   XCircle,
-  CalendarClock,
   Search,
-  Plus,
   Eye,
-  Pencil,
   Trash2,
   X,
   AlertTriangle,
 } from "lucide-react";
-import employees from "../data/employees";
-
-const initialLeaveRequests = [
-  {
-    id: 1,
-    employee: "Fatima Ali",
-    department: "Marketing",
-    leaveType: "Annual Leave",
-    startDate: "2026-10-12",
-    endDate: "2026-10-14",
-    reason: "Family commitments and personal matters.",
-    status: "Approved",
-    appliedDate: "2026-10-05",
-  },
-  {
-    id: 2,
-    employee: "Ali Khan",
-    department: "IT",
-    leaveType: "Sick Leave",
-    startDate: "2026-10-15",
-    endDate: "2026-10-16",
-    reason: "Medical appointment and recovery.",
-    status: "Pending",
-    appliedDate: "2026-10-09",
-  },
-  {
-    id: 3,
-    employee: "Sara Ahmed",
-    department: "Human Resources",
-    leaveType: "Casual Leave",
-    startDate: "2026-10-20",
-    endDate: "2026-10-20",
-    reason: "Personal work that requires one day off.",
-    status: "Pending",
-    appliedDate: "2026-10-08",
-  },
-  {
-    id: 4,
-    employee: "Ahmed Shah",
-    department: "Finance",
-    leaveType: "Annual Leave",
-    startDate: "2026-10-25",
-    endDate: "2026-10-29",
-    reason: "Planned family vacation.",
-    status: "Approved",
-    appliedDate: "2026-10-01",
-  },
-  {
-    id: 5,
-    employee: "Usman Khan",
-    department: "IT",
-    leaveType: "Casual Leave",
-    startDate: "2026-10-18",
-    endDate: "2026-10-18",
-    reason: "Personal appointment.",
-    status: "Rejected",
-    appliedDate: "2026-10-07",
-  },
-  {
-    id: 6,
-    employee: "Ayesha Malik",
-    department: "Operations",
-    leaveType: "Sick Leave",
-    startDate: "2026-10-11",
-    endDate: "2026-10-12",
-    reason: "Not feeling well and needs rest.",
-    status: "Pending",
-    appliedDate: "2026-10-10",
-  },
-  {
-    id: 7,
-    employee: "Maryam Shah",
-    department: "Human Resources",
-    leaveType: "Annual Leave",
-    startDate: "2026-11-02",
-    endDate: "2026-11-05",
-    reason: "Visiting family.",
-    status: "Approved",
-    appliedDate: "2026-10-06",
-  },
-  {
-    id: 8,
-    employee: "Hassan Ali",
-    department: "IT",
-    leaveType: "Casual Leave",
-    startDate: "2026-10-22",
-    endDate: "2026-10-22",
-    reason: "Personal matters.",
-    status: "Pending",
-    appliedDate: "2026-10-10",
-  },
-];
-
-const emptyForm = {
-  employee: "",
-  leaveType: "Annual Leave",
-  startDate: "",
-  endDate: "",
-  reason: "",
-};
+import {
+  getEmployees,
+  getLeaveRequests,
+  updateLeaveStatus,
+  deleteLeaveRequest,
+} from "../services/api";
 
 function getStatusClasses(status) {
   if (status === "Approved") {
@@ -151,24 +54,47 @@ function formatDate(date) {
 }
 
 function Leave() {
-  const [leaveRequests, setLeaveRequests] = useState(initialLeaveRequests);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
+  const [pageError, setPageError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("All");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedType, setSelectedType] = useState("All");
 
   const [viewingRequest, setViewingRequest] = useState(null);
-  const [editingRequest, setEditingRequest] = useState(null);
   const [deletingRequest, setDeletingRequest] = useState(null);
   const [decisionRequest, setDecisionRequest] = useState(null);
-  const [formData, setFormData] = useState(emptyForm);
-  const [formError, setFormError] = useState("");
-  const [isAdding, setIsAdding] = useState(false);
 
   const departments = useMemo(
     () => [...new Set(employees.map((employee) => employee.department))].sort(),
-    [],
+    [employees],
   );
+
+  useEffect(() => {
+    const loadLeaveData = async () => {
+      try {
+        setIsLoading(true);
+        setPageError("");
+
+        const [requests, employeeList] = await Promise.all([
+          getLeaveRequests(),
+          getEmployees(),
+        ]);
+
+        setLeaveRequests(requests);
+        setEmployees(employeeList);
+      } catch (error) {
+        setPageError(error.message || "Unable to load leave management data.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadLeaveData();
+  }, []);
 
   const filteredRequests = useMemo(() => {
     return leaveRequests.filter((request) => {
@@ -208,142 +134,63 @@ function Leave() {
     (request) => request.status === "Rejected",
   ).length;
 
-  const openAddModal = () => {
-    setFormData(emptyForm);
-    setFormError("");
-    setIsAdding(true);
-    setEditingRequest(null);
-  };
-
-  const openEditModal = (request) => {
-    setFormData({
-      employee: request.employee,
-      leaveType: request.leaveType,
-      startDate: request.startDate,
-      endDate: request.endDate,
-      reason: request.reason,
-    });
-    setFormError("");
-    setEditingRequest(request);
-    setIsAdding(false);
-    setViewingRequest(null);
-  };
-
-  const closeFormModal = () => {
-    setIsAdding(false);
-    setEditingRequest(null);
-    setFormData(emptyForm);
-    setFormError("");
-  };
-
-  const handleEmployeeChange = (employeeName) => {
-    setFormData((current) => ({
-      ...current,
-      employee: employeeName,
-    }));
-  };
-
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    setFormError("");
-
-    if (
-      !formData.employee ||
-      !formData.leaveType ||
-      !formData.startDate ||
-      !formData.endDate ||
-      !formData.reason.trim()
-    ) {
-      setFormError("Please complete all fields.");
-      return;
-    }
-
-    if (formData.endDate < formData.startDate) {
-      setFormError("End date cannot be earlier than start date.");
-      return;
-    }
-
-    const selectedEmployee = employees.find(
-      (employee) => employee.name === formData.employee,
-    );
-
-    if (!selectedEmployee) {
-      setFormError("Please select a valid employee.");
-      return;
-    }
-
-    if (isAdding) {
-      const newRequest = {
-        id: Date.now(),
-        employee: selectedEmployee.name,
-        department: selectedEmployee.department,
-        leaveType: formData.leaveType,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        reason: formData.reason.trim(),
-        status: "Pending",
-        appliedDate: new Date().toLocaleDateString("en-CA"),
-      };
-
-      setLeaveRequests((current) => [newRequest, ...current]);
-    } else if (editingRequest) {
-      setLeaveRequests((current) =>
-        current.map((request) =>
-          request.id === editingRequest.id
-            ? {
-                ...request,
-                employee: selectedEmployee.name,
-                department: selectedEmployee.department,
-                leaveType: formData.leaveType,
-                startDate: formData.startDate,
-                endDate: formData.endDate,
-                reason: formData.reason.trim(),
-              }
-            : request,
-        ),
-      );
-    }
-
-    closeFormModal();
-  };
-
-  const handleDecision = () => {
+  const handleDecision = async () => {
     if (!decisionRequest) {
       return;
     }
 
-    setLeaveRequests((current) =>
-      current.map((request) =>
-        request.id === decisionRequest.id
-          ? { ...request, status: decisionRequest.status }
-          : request,
-      ),
-    );
+    try {
+      setIsProcessingAction(true);
+      setPageError("");
 
-    if (viewingRequest?.id === decisionRequest.id) {
-      setViewingRequest({
-        ...viewingRequest,
-        status: decisionRequest.status,
-      });
+      const updatedRequest = await updateLeaveStatus(
+        decisionRequest.id,
+        decisionRequest.status,
+      );
+
+      setLeaveRequests((current) =>
+        current.map((request) =>
+          request.id === updatedRequest.id ? updatedRequest : request,
+        ),
+      );
+
+      if (viewingRequest?.id === updatedRequest.id) {
+        setViewingRequest(updatedRequest);
+      }
+
+      setDecisionRequest(null);
+    } catch (error) {
+      setPageError(error.message || "Unable to update the leave request.");
+    } finally {
+      setIsProcessingAction(false);
     }
-
-    setDecisionRequest(null);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingRequest) {
       return;
     }
 
-    setLeaveRequests((current) =>
-      current.filter((request) => request.id !== deletingRequest.id),
-    );
+    try {
+      setIsProcessingAction(true);
+      setPageError("");
 
-    if (viewingRequest?.id === deletingRequest.id) {
-      setViewingRequest(null);
+      await deleteLeaveRequest(deletingRequest.id);
+
+      setLeaveRequests((current) =>
+        current.filter((request) => request.id !== deletingRequest.id),
+      );
+
+      if (viewingRequest?.id === deletingRequest.id) {
+        setViewingRequest(null);
+      }
+
+      setDeletingRequest(null);
+    } catch (error) {
+      setPageError(error.message || "Unable to delete the leave request.");
+    } finally {
+      setIsProcessingAction(false);
     }
-
-    setDeletingRequest(null);
   };
 
   const resetFilters = () => {
@@ -387,25 +234,19 @@ function Leave() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800">
-            Leave Management
-          </h1>
-          <p className="mt-2 text-slate-500">
-            Manage employee leave requests and review approval decisions.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={openAddModal}
-          className="inline-flex cursor-pointer items-center justify-center gap-2 self-start rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-        >
-          <Plus size={18} />
-          Add Leave Request
-        </button>
+      <div>
+        <h1 className="text-3xl font-bold text-slate-800">Leave Management</h1>
+        <p className="mt-2 text-slate-500">
+          Review employee leave requests and manage approval decisions.
+        </p>
       </div>
+
+      {pageError && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+          <p>{pageError}</p>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
@@ -550,116 +391,118 @@ function Leave() {
             </thead>
 
             <tbody className="divide-y divide-slate-100">
-              {filteredRequests.map((request) => (
-                <tr key={request.id} className="transition hover:bg-slate-50">
-                  <td className="px-6 py-4">
-                    <p className="font-semibold text-slate-800">
-                      {request.employee}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {request.department}
-                    </p>
-                  </td>
-
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {request.leaveType}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <p className="text-sm text-slate-700">
-                      {formatDate(request.startDate)}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      to {formatDate(request.endDate)}
-                    </p>
-                  </td>
-
-                  <td className="px-6 py-4 text-sm font-medium text-slate-700">
-                    {getLeaveDays(request.startDate, request.endDate)}{" "}
-                    {getLeaveDays(request.startDate, request.endDate) === 1
-                      ? "day"
-                      : "days"}
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(request.status)}`}
-                    >
-                      {request.status}
-                    </span>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        title="View request"
-                        aria-label={`View leave request for ${request.employee}`}
-                        onClick={() => setViewingRequest(request)}
-                        className="cursor-pointer rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100"
-                      >
-                        <Eye size={16} />
-                      </button>
-
-                      <button
-                        type="button"
-                        title="Edit request"
-                        aria-label={`Edit leave request for ${request.employee}`}
-                        onClick={() => openEditModal(request)}
-                        className="cursor-pointer rounded-lg border border-slate-200 p-2 text-blue-600 transition hover:bg-blue-50"
-                      >
-                        <Pencil size={16} />
-                      </button>
-
-                      {request.status === "Pending" && (
-                        <>
-                          <button
-                            type="button"
-                            title="Approve request"
-                            aria-label={`Approve leave request for ${request.employee}`}
-                            onClick={() =>
-                              setDecisionRequest({
-                                ...request,
-                                status: "Approved",
-                              })
-                            }
-                            className="cursor-pointer rounded-lg border border-green-200 p-2 text-green-600 transition hover:bg-green-50"
-                          >
-                            <CheckCircle2 size={16} />
-                          </button>
-
-                          <button
-                            type="button"
-                            title="Reject request"
-                            aria-label={`Reject leave request for ${request.employee}`}
-                            onClick={() =>
-                              setDecisionRequest({
-                                ...request,
-                                status: "Rejected",
-                              })
-                            }
-                            className="cursor-pointer rounded-lg border border-amber-200 p-2 text-amber-600 transition hover:bg-amber-50"
-                          >
-                            <XCircle size={16} />
-                          </button>
-                        </>
-                      )}
-
-                      <button
-                        type="button"
-                        title="Delete request"
-                        aria-label={`Delete leave request for ${request.employee}`}
-                        onClick={() => setDeletingRequest(request)}
-                        className="cursor-pointer rounded-lg border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+              {isLoading && (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-6 py-12 text-center text-sm text-slate-500"
+                  >
+                    Loading leave requests...
                   </td>
                 </tr>
-              ))}
+              )}
 
-              {filteredRequests.length === 0 && (
+              {!isLoading &&
+                filteredRequests.map((request) => (
+                  <tr key={request.id} className="transition hover:bg-slate-50">
+                    <td className="px-6 py-4">
+                      <p className="font-semibold text-slate-800">
+                        {request.employee}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {request.department}
+                      </p>
+                    </td>
+
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {request.leaveType}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <p className="text-sm text-slate-700">
+                        {formatDate(request.startDate)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        to {formatDate(request.endDate)}
+                      </p>
+                    </td>
+
+                    <td className="px-6 py-4 text-sm font-medium text-slate-700">
+                      {getLeaveDays(request.startDate, request.endDate)}{" "}
+                      {getLeaveDays(request.startDate, request.endDate) === 1
+                        ? "day"
+                        : "days"}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(request.status)}`}
+                      >
+                        {request.status}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          title="View request"
+                          aria-label={`View leave request for ${request.employee}`}
+                          onClick={() => setViewingRequest(request)}
+                          className="cursor-pointer rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-slate-100"
+                        >
+                          <Eye size={16} />
+                        </button>
+
+                        {request.status === "Pending" && (
+                          <>
+                            <button
+                              type="button"
+                              title="Approve request"
+                              aria-label={`Approve leave request for ${request.employee}`}
+                              onClick={() =>
+                                setDecisionRequest({
+                                  ...request,
+                                  status: "Approved",
+                                })
+                              }
+                              className="cursor-pointer rounded-lg border border-green-200 p-2 text-green-600 transition hover:bg-green-50"
+                            >
+                              <CheckCircle2 size={16} />
+                            </button>
+
+                            <button
+                              type="button"
+                              title="Reject request"
+                              aria-label={`Reject leave request for ${request.employee}`}
+                              onClick={() =>
+                                setDecisionRequest({
+                                  ...request,
+                                  status: "Rejected",
+                                })
+                              }
+                              className="cursor-pointer rounded-lg border border-amber-200 p-2 text-amber-600 transition hover:bg-amber-50"
+                            >
+                              <XCircle size={16} />
+                            </button>
+                          </>
+                        )}
+
+                        <button
+                          type="button"
+                          title="Delete request"
+                          aria-label={`Delete leave request for ${request.employee}`}
+                          onClick={() => setDeletingRequest(request)}
+                          className="cursor-pointer rounded-lg border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+              {!isLoading && filteredRequests.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-16 text-center">
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
@@ -694,190 +537,9 @@ function Leave() {
       </div>
 
       <p className="text-xs text-slate-400">
-        Demonstration data only. Changes are held in local page state and reset
-        when the page is refreshed.
+        Leave requests are saved in the database and remain available after
+        refreshing the page.
       </p>
-
-      {/* Add / Edit Modal */}
-      {(isAdding || editingRequest) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4">
-          <div className="my-auto w-full max-w-xl rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 p-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-800">
-                  {isAdding ? "Add Leave Request" : "Edit Leave Request"}
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Enter the employee's leave details below.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={closeFormModal}
-                aria-label="Close form"
-                className="cursor-pointer rounded-lg p-2 text-slate-500 transition hover:bg-slate-100"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-5 p-6">
-              <div>
-                <label
-                  htmlFor="leaveEmployee"
-                  className="mb-2 block text-sm font-medium text-slate-700"
-                >
-                  Employee
-                </label>
-                <select
-                  id="leaveEmployee"
-                  value={formData.employee}
-                  onChange={(event) => handleEmployeeChange(event.target.value)}
-                  required
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="">Select employee</option>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.name}>
-                      {employee.name} — {employee.department}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="leaveType"
-                  className="mb-2 block text-sm font-medium text-slate-700"
-                >
-                  Leave Type
-                </label>
-                <select
-                  id="leaveType"
-                  value={formData.leaveType}
-                  onChange={(event) =>
-                    setFormData((current) => ({
-                      ...current,
-                      leaveType: event.target.value,
-                    }))
-                  }
-                  required
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="Annual Leave">Annual Leave</option>
-                  <option value="Sick Leave">Sick Leave</option>
-                  <option value="Casual Leave">Casual Leave</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="leaveStartDate"
-                    className="mb-2 block text-sm font-medium text-slate-700"
-                  >
-                    Start Date
-                  </label>
-                  <input
-                    id="leaveStartDate"
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(event) =>
-                      setFormData((current) => ({
-                        ...current,
-                        startDate: event.target.value,
-                      }))
-                    }
-                    required
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="leaveEndDate"
-                    className="mb-2 block text-sm font-medium text-slate-700"
-                  >
-                    End Date
-                  </label>
-                  <input
-                    id="leaveEndDate"
-                    type="date"
-                    min={formData.startDate || undefined}
-                    value={formData.endDate}
-                    onChange={(event) =>
-                      setFormData((current) => ({
-                        ...current,
-                        endDate: event.target.value,
-                      }))
-                    }
-                    required
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-              </div>
-
-              {formData.startDate && formData.endDate && (
-                <p className="text-sm text-slate-500">
-                  Duration:{" "}
-                  <span className="font-semibold text-slate-700">
-                    {getLeaveDays(formData.startDate, formData.endDate)}{" "}
-                    {getLeaveDays(formData.startDate, formData.endDate) === 1
-                      ? "day"
-                      : "days"}
-                  </span>
-                </p>
-              )}
-
-              <div>
-                <label
-                  htmlFor="leaveReason"
-                  className="mb-2 block text-sm font-medium text-slate-700"
-                >
-                  Reason for Leave
-                </label>
-                <textarea
-                  id="leaveReason"
-                  rows={3}
-                  value={formData.reason}
-                  onChange={(event) =>
-                    setFormData((current) => ({
-                      ...current,
-                      reason: event.target.value,
-                    }))
-                  }
-                  placeholder="Enter the reason for this leave request..."
-                  required
-                  className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-
-              {formError && (
-                <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {formError}
-                </p>
-              )}
-
-              <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
-                <button
-                  type="button"
-                  onClick={closeFormModal}
-                  className="cursor-pointer rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="cursor-pointer rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-                >
-                  {isAdding ? "Submit Request" : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* View Request Modal */}
       {viewingRequest && (
@@ -1050,16 +712,16 @@ function Leave() {
               <button
                 type="button"
                 onClick={handleDecision}
-                className={`cursor-pointer rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition ${
+                disabled={isProcessingAction}
+                className={`cursor-pointer rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
                   decisionRequest.status === "Approved"
                     ? "bg-green-600 hover:bg-green-700"
                     : "bg-red-600 hover:bg-red-700"
                 }`}
               >
-                Confirm{" "}
-                {decisionRequest.status === "Approved"
-                  ? "Approval"
-                  : "Rejection"}
+                {isProcessingAction
+                  ? "Processing..."
+                  : `Confirm ${decisionRequest.status === "Approved" ? "Approval" : "Rejection"}`}
               </button>
             </div>
           </div>
@@ -1097,9 +759,10 @@ function Leave() {
               <button
                 type="button"
                 onClick={handleDelete}
-                className="cursor-pointer rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                disabled={isProcessingAction}
+                className="cursor-pointer rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Delete Request
+                {isProcessingAction ? "Deleting..." : "Delete Request"}
               </button>
             </div>
           </div>

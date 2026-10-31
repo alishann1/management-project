@@ -1,4 +1,6 @@
+
 const API_BASE_URL = "http://localhost:5000";
+
 function getAuthHeaders() {
     const token = sessionStorage.getItem("smartmanager_token");
 
@@ -6,6 +8,10 @@ function getAuthHeaders() {
         ? { Authorization: `Bearer ${token}` }
         : {};
 }
+
+// ===============================
+// BACKEND HEALTH
+// ===============================
 
 export async function checkBackendHealth() {
     const response = await fetch(`${API_BASE_URL}/api/health`);
@@ -16,6 +22,10 @@ export async function checkBackendHealth() {
 
     return response.json();
 }
+
+// ===============================
+// EMPLOYEE API
+// ===============================
 
 export async function getEmployees() {
     const response = await fetch(`${API_BASE_URL}/api/employees`, {
@@ -32,7 +42,6 @@ export async function getEmployees() {
         throw new Error(result.message || "Failed to fetch employees");
     }
 
-    // Adapt MongoDB fields to the fields used by the existing UI.
     return result.data.map((employee) => ({
         id: employee._id,
         name: employee.name,
@@ -42,9 +51,7 @@ export async function getEmployees() {
         status: employee.status,
         performance: employee.performance,
     }));
-
 }
-
 
 export async function createEmployee(employeeData) {
     const response = await fetch(`${API_BASE_URL}/api/employees`, {
@@ -74,7 +81,6 @@ export async function createEmployee(employeeData) {
         performance: employee.performance,
     };
 }
-
 
 export async function updateEmployee(employeeId, employeeData) {
     const response = await fetch(
@@ -108,8 +114,6 @@ export async function updateEmployee(employeeId, employeeData) {
     };
 }
 
-
-
 export async function deleteEmployee(employeeId) {
     const response = await fetch(
         `${API_BASE_URL}/api/employees/${employeeId}`,
@@ -128,6 +132,9 @@ export async function deleteEmployee(employeeId) {
     return result;
 }
 
+// ===============================
+// TASK API
+// ===============================
 
 export async function getMyTasks() {
     const response = await fetch(`${API_BASE_URL}/api/tasks/my-tasks`, {
@@ -153,7 +160,6 @@ export async function getMyTasks() {
         progress: task.progress,
     }));
 }
-
 
 export async function getTasks() {
     const response = await fetch(`${API_BASE_URL}/api/tasks`, {
@@ -232,6 +238,10 @@ export async function deleteTask(taskId) {
 
     return result;
 }
+
+// ===============================
+// GOALS API
+// ===============================
 
 export async function getGoals() {
     const response = await fetch(`${API_BASE_URL}/api/goals`, {
@@ -313,6 +323,9 @@ export async function deleteGoal(goalId) {
     return result;
 }
 
+// ===============================
+// AUTHENTICATION API
+// ===============================
 
 export async function loginUser(email, password) {
     const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -332,6 +345,9 @@ export async function loginUser(email, password) {
     return result;
 }
 
+// ===============================
+// DEPARTMENT API
+// ===============================
 
 export async function getDepartments() {
     const response = await fetch(`${API_BASE_URL}/api/departments`, {
@@ -412,6 +428,9 @@ export async function deleteDepartment(departmentId) {
     return result;
 }
 
+// ===============================
+// PROJECT API
+// ===============================
 
 export async function getProjects() {
     const response = await fetch(`${API_BASE_URL}/api/projects`, {
@@ -590,3 +609,128 @@ export async function initializeAttendance(date) {
     return result.data;
 }
 
+// ===============================
+// LEAVE API
+// ===============================
+
+// Convert MongoDB leave request into the format used by Leave.jsx.
+function mapLeaveRequest(leave) {
+    return {
+        id: leave._id,
+        employeeId: leave.employee?._id || leave.employee,
+        employee: leave.employee?.name || "",
+        department: leave.employee?.department || "",
+        leaveType: leave.leaveType,
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+        reason: leave.reason || "",
+        status: leave.status,
+        appliedDate: leave.appliedDate,
+    };
+}
+
+// Get all leave requests.
+export async function getLeaveRequests() {
+    const response = await fetch(`${API_BASE_URL}/api/leave`, {
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to fetch leave requests.");
+    }
+
+    return result.data.map(mapLeaveRequest);
+}
+
+// Create a leave request.
+export async function createLeaveRequest(leaveData) {
+    const response = await fetch(`${API_BASE_URL}/api/leave`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+            employee: leaveData.employee,
+            leaveType: leaveData.leaveType,
+            startDate: leaveData.startDate,
+            endDate: leaveData.endDate,
+            reason: leaveData.reason || "",
+        }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to create leave request.");
+    }
+
+    return mapLeaveRequest(result.data);
+}
+
+// Update leave request details.
+export async function updateLeaveRequest(leaveId, leaveData) {
+    const response = await fetch(`${API_BASE_URL}/api/leave/${leaveId}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+            employee: leaveData.employee,
+            leaveType: leaveData.leaveType,
+            startDate: leaveData.startDate,
+            endDate: leaveData.endDate,
+            reason: leaveData.reason || "",
+        }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update leave request.");
+    }
+
+    return mapLeaveRequest(result.data);
+}
+
+// Approve or reject a leave request.
+export async function updateLeaveStatus(leaveId, status) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/leave/${leaveId}/status`,
+        {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                ...getAuthHeaders(),
+            },
+            body: JSON.stringify({ status }),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update leave status.");
+    }
+
+    return mapLeaveRequest(result.data);
+}
+
+// Delete a leave request.
+export async function deleteLeaveRequest(leaveId) {
+    const response = await fetch(`${API_BASE_URL}/api/leave/${leaveId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to delete leave request.");
+    }
+
+    return result;
+}
