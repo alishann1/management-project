@@ -17,6 +17,8 @@ import VerifyEmail from "./pages/VerifyEmail";
 import SetPassword from "./pages/SetPassword";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import MyTasks from "./pages/MyTasks";
+import MyGoals from "./pages/MyGoals";
+import MyAttendance from "./pages/MyAttendance";
 
 function App() {
   return (
@@ -48,6 +50,8 @@ function App() {
           <Route element={<DashboardLayout />}>
             <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
             <Route path="/my-tasks" element={<MyTasks />} />
+            <Route path="/my-goals" element={<MyGoals />} />
+            <Route path="/my-attendance" element={<MyAttendance />} />
           </Route>
         </Route>
       </Routes>

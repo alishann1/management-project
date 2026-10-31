@@ -2,10 +2,128 @@
 import express from "express";
 import Goal from "../models/Goal.js";
 import Employee from "../models/Employee.js";
+import User from "../models/User.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import { authorizeRole } from "../middleware/authorizeRole.js";
 
 const router = express.Router();
+
+// GET /api/goals/my-goals — Employees can view only their own goals.
+router.get(
+    "/my-goals",
+    authenticateToken,
+    authorizeRole("Employee"),
+    async (req, res) => {
+        try {
+            // Find the logged-in employee's linked record.
+            const user = await User.findById(req.user.userId).select(
+                "employee role"
+            );
+
+            if (!user || !user.employee || user.role !== "Employee") {
+                return res.status(403).json({
+                    success: false,
+                    message: "Your employee account is not linked to an employee record.",
+                });
+            }
+
+            // Fetch only goals assigned to this employee.
+            const goals = await Goal.find({
+                employee: user.employee,
+            }).sort({ deadline: 1 });
+
+            return res.status(200).json({
+                success: true,
+                count: goals.length,
+                data: goals,
+            });
+        } catch (error) {
+            console.error("Failed to fetch employee goals:", error.message);
+
+            return res.status(500).json({
+                success: false,
+                message: "Failed to fetch your goals.",
+            });
+        }
+    }
+);
+
+// PATCH /api/goals/my-goals/:id
+// Employees can update progress on their own assigned goals.
+router.patch(
+    "/my-goals/:id",
+    authenticateToken,
+    authorizeRole("Employee"),
+    async (req, res) => {
+        try {
+            const { progress } = req.body;
+
+            // Validate progress.
+            if (
+                progress === undefined ||
+                typeof progress !== "number" ||
+                !Number.isInteger(progress) ||
+                progress < 0 ||
+                progress > 100
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Progress must be a whole number between 0 and 100.",
+                });
+            }
+
+            // Find the logged-in employee's linked record.
+            const user = await User.findById(req.user.userId).select(
+                "employee role"
+            );
+
+            if (!user || !user.employee || user.role !== "Employee") {
+                return res.status(403).json({
+                    success: false,
+                    message: "Your employee account is not linked to an employee record.",
+                });
+            }
+
+            // Find only a goal assigned to this employee.
+            const goal = await Goal.findOne({
+                _id: req.params.id,
+                employee: user.employee,
+            });
+
+            if (!goal) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Goal not found or not assigned to you.",
+                });
+            }
+
+            // Update only progress. The Goal model synchronizes status.
+            goal.progress = progress;
+
+            await goal.save();
+
+            return res.status(200).json({
+                success: true,
+                message: "Goal progress updated successfully.",
+                data: goal,
+            });
+        } catch (error) {
+            console.error("Failed to update employee goal:", error.message);
+
+            if (error.name === "CastError") {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid goal ID.",
+                });
+            }
+
+            return res.status(500).json({
+                success: false,
+                message: "Failed to update goal progress.",
+            });
+        }
+    }
+);
 
 // GET /api/goals — Managers can view all goals.
 router.get(

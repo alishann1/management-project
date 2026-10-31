@@ -4,14 +4,56 @@ import mongoose from "mongoose";
 
 import Attendance from "../models/Attendance.js";
 import Employee from "../models/Employee.js";
+import User from "../models/User.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import { authorizeRole } from "../middleware/authorizeRole.js";
 
 const router = express.Router();
 
-// Protect all attendance routes.
-// Only Managers can access the current attendance management endpoints.
+// All attendance routes require authentication.
 router.use(authenticateToken);
+
+// GET /api/attendance/my-attendance
+// Employees can view only their own attendance records.
+router.get(
+    "/my-attendance",
+    authorizeRole("Employee"),
+    async (req, res) => {
+        try {
+            // Find the logged-in employee's linked record.
+            const user = await User.findById(req.user.userId).select(
+                "employee role"
+            );
+
+            if (!user || !user.employee || user.role !== "Employee") {
+                return res.status(403).json({
+                    success: false,
+                    message: "Your employee account is not linked to an employee record.",
+                });
+            }
+
+            // Fetch only this employee's attendance records.
+            const attendance = await Attendance.find({
+                employee: user.employee,
+            }).sort({ date: -1, createdAt: -1 });
+
+            return res.status(200).json({
+                success: true,
+                count: attendance.length,
+                data: attendance,
+            });
+        } catch (error) {
+            console.error("Get employee attendance error:", error.message);
+
+            return res.status(500).json({
+                success: false,
+                message: "Failed to fetch your attendance records.",
+            });
+        }
+    }
+);
+
+// Protect all remaining attendance management routes.
 router.use(authorizeRole("Manager"));
 
 // Initialize attendance for a selected date.

@@ -161,6 +161,33 @@ export async function getMyTasks() {
     }));
 }
 
+// Update progress of an employee's own assigned task.
+export async function updateMyTaskProgress(taskId, progress) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/tasks/my-tasks/${taskId}`,
+        {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                ...getAuthHeaders(),
+            },
+            body: JSON.stringify({ progress }),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update task progress.");
+    }
+
+    return {
+        id: result.data._id,
+        status: result.data.status,
+        progress: result.data.progress,
+    };
+}
+
 export async function getTasks() {
     const response = await fetch(`${API_BASE_URL}/api/tasks`, {
         headers: getAuthHeaders(),
@@ -268,6 +295,61 @@ export async function getGoals() {
             ? goal.deadline.split("T")[0]
             : "",
     }));
+}
+
+
+// Fetch goals assigned to the logged-in employee.
+export async function getMyGoals() {
+    const response = await fetch(`${API_BASE_URL}/api/goals/my-goals`, {
+        headers: getAuthHeaders(),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to fetch your goals.");
+    }
+
+    return result.data.map((goal) => ({
+        id: goal._id,
+        title: goal.title,
+        description: goal.description,
+        department: goal.department,
+        category: goal.category,
+        target: goal.target,
+        progress: goal.progress,
+        status: goal.status,
+        deadline: goal.deadline
+            ? goal.deadline.split("T")[0]
+            : "",
+    }));
+}
+
+// Update progress of an employee's own assigned goal.
+export async function updateMyGoalProgress(goalId, progress) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/goals/my-goals/${goalId}`,
+        {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                ...getAuthHeaders(),
+            },
+            body: JSON.stringify({ progress }),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to update goal progress.");
+    }
+
+    return {
+        id: result.data._id,
+        status: result.data.status,
+        progress: result.data.progress,
+    };
 }
 
 export async function createGoal(goalData) {
@@ -535,6 +617,32 @@ export async function getAttendance() {
     }
 
     return result.data;
+}
+
+// Fetch attendance records for the logged-in employee.
+export async function getMyAttendance() {
+    const response = await fetch(
+        `${API_BASE_URL}/api/attendance/my-attendance`,
+        {
+            headers: getAuthHeaders(),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(
+            result.message || "Failed to fetch your attendance records."
+        );
+    }
+
+    return result.data.map((record) => ({
+        id: record._id,
+        date: record.date,
+        checkIn: record.checkIn,
+        checkOut: record.checkOut,
+        status: record.status,
+    }));
 }
 
 export async function createAttendance(attendanceData) {

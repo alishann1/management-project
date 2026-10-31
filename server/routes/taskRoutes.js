@@ -77,6 +77,84 @@ router.get(
 );
 
 
+// PATCH /api/tasks/my-tasks/:id
+// Employees can update progress on their own assigned tasks.
+router.patch(
+    "/my-tasks/:id",
+    authenticateToken,
+    authorizeRole("Employee"),
+    async (req, res) => {
+        try {
+            const { progress } = req.body;
+
+            // Validate progress.
+            if (
+                progress === undefined ||
+                typeof progress !== "number" ||
+                !Number.isInteger(progress) ||
+                progress < 0 ||
+                progress > 100
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Progress must be a whole number between 0 and 100.",
+                });
+            }
+
+            // Find the logged-in employee's linked record.
+            const user = await User.findById(req.user.userId).select(
+                "employee role"
+            );
+
+            if (!user || !user.employee || user.role !== "Employee") {
+                return res.status(403).json({
+                    success: false,
+                    message: "Your employee account is not linked to an employee record.",
+                });
+            }
+
+            // Find only a task assigned to this employee.
+            const task = await Task.findOne({
+                _id: req.params.id,
+                assignedTo: user.employee,
+            });
+
+            if (!task) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Task not found or not assigned to you.",
+                });
+            }
+
+            // Update only progress.
+            // The Task model automatically synchronizes status.
+            task.progress = progress;
+
+            await task.save();
+
+            return res.status(200).json({
+                success: true,
+                message: "Task progress updated successfully.",
+                data: task,
+            });
+        } catch (error) {
+            console.error("Failed to update employee task:", error.message);
+
+            if (error.name === "CastError") {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid task ID.",
+                });
+            }
+
+            return res.status(500).json({
+                success: false,
+                message: "Failed to update task progress.",
+            });
+        }
+    }
+);
+
 
 // POST /api/tasks — Managers can create tasks
 router.post(
