@@ -18,12 +18,19 @@ function ProtectedRoute({ allowedRoles }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    if (user.role === "Employee") {
+  // Normalize the role so uppercase/lowercase differences do not matter.
+  const userRole = String(user.role || "").toLowerCase();
+
+  const isAllowed =
+    !allowedRoles ||
+    allowedRoles.some((role) => role.toLowerCase() === userRole);
+
+  if (!isAllowed) {
+    if (userRole === "employee") {
       return <Navigate to="/employee-dashboard" replace />;
     }
 
-    if (user.role === "Manager") {
+    if (userRole === "manager") {
       return <Navigate to="/" replace />;
     }
 

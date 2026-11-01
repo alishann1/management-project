@@ -761,7 +761,6 @@ export async function createLeaveRequest(leaveData) {
             ...getAuthHeaders(),
         },
         body: JSON.stringify({
-            employee: leaveData.employee,
             leaveType: leaveData.leaveType,
             startDate: leaveData.startDate,
             endDate: leaveData.endDate,
@@ -787,7 +786,6 @@ export async function updateLeaveRequest(leaveId, leaveData) {
             ...getAuthHeaders(),
         },
         body: JSON.stringify({
-            employee: leaveData.employee,
             leaveType: leaveData.leaveType,
             startDate: leaveData.startDate,
             endDate: leaveData.endDate,
@@ -843,6 +841,25 @@ export async function deleteLeaveRequest(leaveId) {
     return result;
 }
 
+// Cancel an employee's own pending leave request.
+export async function cancelLeaveRequest(leaveId) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/leave/${leaveId}/cancel`,
+        {
+            method: "PATCH",
+            headers: getAuthHeaders(),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to cancel leave request.");
+    }
+
+    return result;
+}
+
 // ===============================
 // PERFORMANCE API
 // ===============================
@@ -865,6 +882,7 @@ function mapPerformanceReview(review) {
     };
 }
 
+
 // Get all performance reviews.
 export async function getPerformanceReviews() {
     const response = await fetch(`${API_BASE_URL}/api/performance`, {
@@ -875,6 +893,26 @@ export async function getPerformanceReviews() {
 
     if (!response.ok || !result.success) {
         throw new Error(result.message || "Failed to fetch performance reviews.");
+    }
+
+    return result.data.map(mapPerformanceReview);
+}
+
+// Fetch performance reviews for the logged-in employee
+export async function getMyPerformance() {
+    const response = await fetch(
+        `${API_BASE_URL}/api/performance/my-performance`,
+        {
+            headers: getAuthHeaders(),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(
+            result.message || "Failed to fetch your performance reviews."
+        );
     }
 
     return result.data.map(mapPerformanceReview);

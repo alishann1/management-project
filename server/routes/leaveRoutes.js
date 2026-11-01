@@ -280,6 +280,54 @@ router.put("/:id", requireEmployee, async (req, res) => {
     }
 });
 
+// PATCH a leave request cancellation.
+// Employees can cancel only their own pending requests.
+router.patch("/:id/cancel", requireEmployee, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid leave request ID.",
+            });
+        }
+
+        const leaveRequest = await Leave.findOne({
+            _id: id,
+            employee: req.employeeId,
+        });
+
+        if (!leaveRequest) {
+            return res.status(404).json({
+                success: false,
+                message: "Leave request not found.",
+            });
+        }
+
+        if (leaveRequest.status !== "Pending") {
+            return res.status(400).json({
+                success: false,
+                message: "Only pending leave requests can be cancelled.",
+            });
+        }
+
+        await Leave.findByIdAndDelete(id);
+
+        return res.status(200).json({
+            success: true,
+            message: "Leave request cancelled successfully.",
+        });
+    } catch (error) {
+        console.error("Cancel leave request error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to cancel leave request.",
+        });
+    }
+});
+
 // PATCH leave status.
 // Only managers can approve or reject requests.
 router.patch("/:id/status", requireManager, async (req, res) => {

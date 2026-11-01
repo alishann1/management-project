@@ -4,10 +4,51 @@ import mongoose from "mongoose";
 
 import Performance from "../models/Performance.js";
 import Employee from "../models/Employee.js";
+import User from "../models/User.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import { authorizeRole } from "../middleware/authorizeRole.js";
 
 const router = express.Router();
+
+// GET performance reviews for the logged-in employee
+router.get(
+    "/my-performance",
+    authenticateToken,
+    authorizeRole("Employee"),
+    async (req, res) => {
+        try {
+            // Find the logged-in user's linked employee record
+            const user = await User.findById(req.user.userId)
+                .select("role employee");
+
+            if (!user || user.role !== "Employee" || !user.employee) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Employee account or linked employee record not found.",
+                });
+            }
+
+            // Fetch only this employee's performance reviews
+            const reviews = await Performance.find({
+                employee: user.employee,
+            })
+                .populate("employee", "name department role")
+                .sort({ reviewDate: -1, createdAt: -1 });
+
+            return res.status(200).json({
+                success: true,
+                data: reviews,
+            });
+        } catch (error) {
+            console.error("Fetch employee performance error:", error);
+
+            return res.status(500).json({
+                success: false,
+                message: "Failed to fetch your performance reviews.",
+            });
+        }
+    }
+);
 
 // GET all performance reviews
 router.get(

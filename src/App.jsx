@@ -19,6 +19,8 @@ import EmployeeDashboard from "./pages/EmployeeDashboard";
 import MyTasks from "./pages/MyTasks";
 import MyGoals from "./pages/MyGoals";
 import MyAttendance from "./pages/MyAttendance";
+import MyLeave from "./pages/MyLeave";
+import MyPerformance from "./pages/MyPerformance";
 
 function App() {
   return (
@@ -52,6 +54,8 @@ function App() {
             <Route path="/my-tasks" element={<MyTasks />} />
             <Route path="/my-goals" element={<MyGoals />} />
             <Route path="/my-attendance" element={<MyAttendance />} />
+            <Route path="/my-leave" element={<MyLeave />} />
+            <Route path="/my-performance" element={<MyPerformance />} />
           </Route>
         </Route>
       </Routes>
