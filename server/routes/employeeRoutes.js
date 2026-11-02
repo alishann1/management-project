@@ -1,5 +1,8 @@
+
 import express from "express";
 import Employee from "../models/Employee.js";
+import Department from "../models/Department.js";
+import User from "../models/User.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import { authorizeRole } from "../middleware/authorizeRole.js";
 
@@ -30,16 +33,14 @@ router.get(
     }
 );
 
-
-/* POST /api/employees — create an employee */
+// POST /api/employees — create an employee
 router.post(
     "/",
     authenticateToken,
     authorizeRole("Manager"),
     async (req, res) => {
         try {
-            const { name, email, department, position, status, performance } =
-                req.body;
+            const { name, email, department, position, status } = req.body;
 
             if (!name?.trim() || !department?.trim() || !position?.trim()) {
                 return res.status(400).json({
@@ -57,24 +58,12 @@ router.post(
                 });
             }
 
-            if (
-                performance !== undefined &&
-                (Number(performance) < 0 || Number(performance) > 100)
-            ) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Performance must be between 0 and 100.",
-                });
-            }
-
             const employee = await Employee.create({
                 name: name.trim(),
                 email: email?.trim() || "",
                 department: department.trim(),
                 role: position.trim(),
                 status: status || "Active",
-                performance:
-                    performance === undefined ? 0 : Number(performance),
             });
 
             res.status(201).json({
@@ -93,17 +82,14 @@ router.post(
     }
 );
 
-
-
-/* PUT /api/employees/:id — update an employee */
+// PUT /api/employees/:id — update an employee
 router.put(
     "/:id",
     authenticateToken,
     authorizeRole("Manager"),
     async (req, res) => {
         try {
-            const { name, email, department, position, status, performance } =
-                req.body;
+            const { name, email, department, position, status } = req.body;
 
             if (!name?.trim() || !department?.trim() || !position?.trim()) {
                 return res.status(400).json({
@@ -121,28 +107,6 @@ router.put(
                 });
             }
 
-            if (
-                performance !== undefined &&
-                (!Number.isFinite(Number(performance)) ||
-                    Number(performance) < 0 ||
-                    Number(performance) > 100)
-            ) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Performance must be a number between 0 and 100.",
-                });
-            }
-
-            if (
-                performance !== undefined &&
-                String(performance).trim() === ""
-            ) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Performance must be a number between 0 and 100.",
-                });
-            }
-
             const employee = await Employee.findByIdAndUpdate(
                 req.params.id,
                 {
@@ -151,8 +115,6 @@ router.put(
                     department: department.trim(),
                     role: position.trim(),
                     status: status || "Active",
-                    performance:
-                        performance === undefined ? 0 : Number(performance),
                 },
                 {
                     new: true,
@@ -175,6 +137,13 @@ router.put(
         } catch (error) {
             console.error("Failed to update employee:", error.message);
 
+            if (error.name === "CastError") {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid employee ID.",
+                });
+            }
+
             res.status(500).json({
                 success: false,
                 message: "Failed to update employee.",
@@ -183,15 +152,15 @@ router.put(
     }
 );
 
-
-/* DELETE /api/employees/:id — delete an employee */
+// DELETE /api/employees/:id — delete an employee and linked account
 router.delete(
     "/:id",
     authenticateToken,
     authorizeRole("Manager"),
     async (req, res) => {
         try {
-            const employee = await Employee.findByIdAndDelete(req.params.id);
+            // Find the employee before deleting
+            const employee = await Employee.findById(req.params.id);
 
             if (!employee) {
                 return res.status(404).json({
@@ -200,9 +169,24 @@ router.delete(
                 });
             }
 
-            res.status(200).json({
+            // Remove the linked Employee login account
+            await User.deleteMany({
+                employee: employee._id,
+                role: "Employee",
+            });
+
+            // Clear this employee's name from departments they manage
+            await Department.updateMany(
+                { manager: employee.name },
+                { $set: { manager: "" } }
+            );
+
+            // Delete the employee record
+            await Employee.findByIdAndDelete(req.params.id);
+
+            return res.status(200).json({
                 success: true,
-                message: "Employee deleted successfully.",
+                message: "Employee and linked account deleted successfully.",
                 data: employee,
             });
         } catch (error) {
@@ -215,14 +199,12 @@ router.delete(
                 });
             }
 
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
                 message: "Failed to delete employee.",
             });
         }
     }
 );
-
-
 
 export default router;

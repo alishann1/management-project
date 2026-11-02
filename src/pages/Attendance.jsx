@@ -489,11 +489,6 @@ function Attendance() {
           </p>
         </div>
       </div>
-
-      <p className="text-xs text-slate-400">
-        Attendance records are saved in the database and remain available after
-        refreshing the page.
-      </p>
     </div>
   );
 }

@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 
 const employeeSchema = new mongoose.Schema(
@@ -28,12 +27,6 @@ const employeeSchema = new mongoose.Schema(
             type: String,
             enum: ["Active", "Inactive", "On Leave"],
             default: "Active",
-        },
-        performance: {
-            type: Number,
-            min: 0,
-            max: 100,
-            default: 0,
         },
     },
     { timestamps: true }

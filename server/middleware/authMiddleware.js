@@ -1,7 +1,8 @@
 
 import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 
-export function authenticateToken(req, res, next) {
+export async function authenticateToken(req, res, next) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -21,18 +22,40 @@ export function authenticateToken(req, res, next) {
     }
 
     try {
+        // Verify the JWT
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+        // Check whether the account still exists in MongoDB
+        const user = await User.findById(decoded.userId).select("role");
+
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: "Your account no longer exists. Please sign in again.",
+            });
+        }
+
+        // Use the current role stored in the database
         req.user = {
-            userId: decoded.userId,
-            role: decoded.role,
+            userId: user._id.toString(),
+            role: user.role,
         };
 
-        next();
-    } catch {
-        return res.status(401).json({
+        return next();
+    } catch (error) {
+        if (error.name === "JsonWebTokenError" ||
+            error.name === "TokenExpiredError") {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid or expired token. Please sign in again.",
+            });
+        }
+
+        console.error("Authentication error:", error);
+
+        return res.status(500).json({
             success: false,
-            message: "Invalid or expired token. Please sign in again.",
+            message: "Authentication failed. Please try again.",
         });
     }
 }

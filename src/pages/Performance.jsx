@@ -1054,11 +1054,6 @@ function Performance() {
           </div>
         </div>
       )}
-
-      {/* Footer */}
-      <p className="text-center text-xs text-gray-400">
-        Performance records are saved to the database.
-      </p>
     </div>
   );
 }

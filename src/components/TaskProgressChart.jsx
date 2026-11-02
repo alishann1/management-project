@@ -8,26 +8,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const data = [
-  {
-    status: "Completed",
-    tasks: 42,
-  },
-  {
-    status: "In Progress",
-    tasks: 18,
-  },
-  {
-    status: "Pending",
-    tasks: 11,
-  },
-  {
-    status: "Overdue",
-    tasks: 5,
-  },
-];
-
-function TaskProgressChart() {
+function TaskProgressChart({ data = [] }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
       <div className="mb-6">
@@ -39,19 +20,25 @@ function TaskProgressChart() {
       </div>
 
       <div className="h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" />
+        {data.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" />
 
-            <XAxis dataKey="status" />
+              <XAxis dataKey="status" />
 
-            <YAxis allowDecimals={false} />
+              <YAxis allowDecimals={false} />
 
-            <Tooltip />
+              <Tooltip />
 
-            <Bar dataKey="tasks" fill="#2563eb" radius={[6, 6, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+              <Bar dataKey="tasks" fill="#2563eb" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+            No task data available
+          </div>
+        )}
       </div>
     </div>
   );

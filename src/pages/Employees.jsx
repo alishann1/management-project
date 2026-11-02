@@ -15,6 +15,10 @@ import {
   updateEmployee,
   deleteEmployee,
   getDepartments,
+  inviteEmployeeAccount,
+  getEmployeeAccountStatuses,
+  resendEmployeeVerification,
+  resendEmployeePasswordSetup,
 } from "../services/api";
 
 // Keep department names consistent with employee records.
@@ -49,6 +53,14 @@ function Employees() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [savingEmployee, setSavingEmployee] = useState(false);
+  const [createLoginAccount, setCreateLoginAccount] = useState(true);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [accountStatuses, setAccountStatuses] = useState([]);
+  const [accountStatusesLoading, setAccountStatusesLoading] = useState(true);
+  const [accountStatusError, setAccountStatusError] = useState("");
+  const [accountActionEmployeeId, setAccountActionEmployeeId] = useState(null);
+  const [accountManagementEmployee, setAccountManagementEmployee] =
+    useState(null);
   const [updatingEmployee, setUpdatingEmployee] = useState(false);
   const [deletingEmployeeLoading, setDeletingEmployeeLoading] = useState(false);
 
@@ -58,8 +70,18 @@ function Employees() {
     department: "IT",
     position: "",
     status: "Active",
-    performance: 0,
   });
+
+  // Automatically dismiss success messages after five seconds.
+  useEffect(() => {
+    if (!successMessage) return;
+
+    const timeoutId = setTimeout(() => {
+      setSuccessMessage("");
+    }, 5000);
+
+    return () => clearTimeout(timeoutId);
+  }, [successMessage]);
 
   // Load employees from MongoDB.
   useEffect(() => {
@@ -95,6 +117,28 @@ function Employees() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  // Load safe login-account statuses separately so an account-status
+  // problem does not prevent the Employees page from loading.
+  const loadAccountStatuses = async () => {
+    try {
+      setAccountStatusesLoading(true);
+      setAccountStatusError("");
+      const data = await getEmployeeAccountStatuses();
+      setAccountStatuses(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setAccountStatusError(
+        err.message || "Could not load employee account statuses.",
+      );
+      console.error("Employee account status loading error:", err);
+    } finally {
+      setAccountStatusesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAccountStatuses();
   }, []);
 
   // Load department options from MongoDB.
@@ -161,19 +205,37 @@ function Employees() {
     try {
       setSavingEmployee(true);
       setError("");
+      setSuccessMessage("");
 
       const employeeToAdd = {
         ...newEmployee,
         department: normalizeDepartmentName(newEmployee.department),
-        performance: Number(newEmployee.performance) || 0,
       };
 
+      // First, save the employee record in MongoDB.
       const savedEmployee = await createEmployee(employeeToAdd);
 
       setEmployeeList((previousEmployees) => [
         savedEmployee,
         ...previousEmployees,
       ]);
+
+      // If selected, create the login account and send its invitation.
+      if (createLoginAccount) {
+        try {
+          await inviteEmployeeAccount(savedEmployee.id, savedEmployee.email);
+          await loadAccountStatuses();
+          setSuccessMessage(
+            "Employee added successfully. Account verification email sent.",
+          );
+        } catch (inviteError) {
+          setError(
+            `Employee was added successfully, but the account invitation failed: ${inviteError.message}`,
+          );
+        }
+      } else {
+        setSuccessMessage("Employee added successfully.");
+      }
 
       setShowAddModal(false);
 
@@ -183,12 +245,129 @@ function Employees() {
         department: "IT",
         position: "",
         status: "Active",
-        performance: 0,
       });
+
+      setCreateLoginAccount(true);
     } catch (err) {
       setError(err.message || "Failed to add employee.");
     } finally {
       setSavingEmployee(false);
+    }
+  };
+
+  // Find the account-status record for one employee.
+  // The fallback field names keep the UI tolerant of the safe response shape.
+  const getAccountStatus = (employeeId) => {
+    if (accountStatusesLoading) return "Loading...";
+    if (accountStatusError) return "Unavailable";
+
+    const record = accountStatuses.find((item) => {
+      const linkedEmployeeId =
+        item.employeeId || item.employee?._id || item.employee || item.id;
+      return String(linkedEmployeeId) === String(employeeId);
+    });
+
+    return (
+      record?.status ||
+      record?.accountStatus ||
+      record?.accountStatusLabel ||
+      "No Account"
+    );
+  };
+
+  const getAccountStatusClasses = (accountStatus) => {
+    if (accountStatus === "Active") {
+      return "bg-green-100 text-green-700";
+    }
+
+    if (
+      accountStatus === "Verification Pending" ||
+      accountStatus === "Password Setup Pending"
+    ) {
+      return "bg-blue-100 text-blue-700";
+    }
+
+    if (
+      accountStatus === "Verification Expired" ||
+      accountStatus === "Password Setup Expired"
+    ) {
+      return "bg-amber-100 text-amber-700";
+    }
+
+    if (accountStatus === "Access Disabled") {
+      return "bg-red-100 text-red-700";
+    }
+
+    return "bg-slate-100 text-slate-700";
+  };
+
+  const getAccountActionLabel = (accountStatus) => {
+    if (accountStatus === "No Account") return "Create Login Account";
+    if (
+      accountStatus === "Verification Pending" ||
+      accountStatus === "Verification Expired"
+    ) {
+      return "Resend Verification";
+    }
+    if (
+      accountStatus === "Password Setup Pending" ||
+      accountStatus === "Password Setup Expired"
+    ) {
+      return "Resend Password Setup";
+    }
+    return "";
+  };
+
+  const handleAccountAction = async (employee) => {
+    if (
+      !employee ||
+      accountActionEmployeeId ||
+      accountStatusesLoading ||
+      accountStatusError
+    )
+      return;
+
+    const currentStatus = getAccountStatus(employee.id);
+    const actionLabel = getAccountActionLabel(currentStatus);
+
+    if (!actionLabel) return;
+
+    if (!employee.email?.trim()) {
+      setError(
+        "This employee does not have an email address. Edit the employee record and add an email before creating a login account.",
+      );
+      return;
+    }
+
+    try {
+      setAccountActionEmployeeId(employee.id);
+      setError("");
+      setSuccessMessage("");
+
+      if (currentStatus === "No Account") {
+        await inviteEmployeeAccount(employee.id, employee.email);
+      } else if (
+        currentStatus === "Verification Pending" ||
+        currentStatus === "Verification Expired"
+      ) {
+        await resendEmployeeVerification(employee.id);
+      } else if (
+        currentStatus === "Password Setup Pending" ||
+        currentStatus === "Password Setup Expired"
+      ) {
+        await resendEmployeePasswordSetup(employee.id);
+      }
+
+      await loadAccountStatuses();
+      setSuccessMessage(
+        `${actionLabel} email sent successfully for ${employee.name}.`,
+      );
+    } catch (err) {
+      setError(err.message || `Failed to ${actionLabel.toLowerCase()}.`);
+      // Refresh status in case the backend created the account before email delivery failed.
+      await loadAccountStatuses();
+    } finally {
+      setAccountActionEmployeeId(null);
     }
   };
 
@@ -217,10 +396,13 @@ function Employees() {
       setUpdatingEmployee(true);
       setError("");
 
+      // Send only employee fields; do not send legacy performance data.
       const updatedEmployee = await updateEmployee(editingEmployee.id, {
-        ...editingEmployee,
+        name: editingEmployee.name,
+        email: editingEmployee.email,
         department: normalizeDepartmentName(editingEmployee.department),
-        performance: Number(editingEmployee.performance) || 0,
+        position: editingEmployee.position,
+        status: editingEmployee.status,
       });
 
       setEmployeeList((previousEmployees) =>
@@ -326,6 +508,36 @@ function Employees() {
           className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-5 text-sm"
         >
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div
+          role="status"
+          className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 mb-5 text-sm"
+        >
+          {successMessage}
+        </div>
+      )}
+
+      {/* Account status loading errors */}
+      {accountStatusError && (
+        <div
+          role="alert"
+          className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
+        >
+          <span>
+            Login-account statuses could not be loaded. Account actions are
+            disabled to prevent duplicate accounts.
+          </span>
+          <button
+            type="button"
+            onClick={loadAccountStatuses}
+            disabled={accountStatusesLoading}
+            className="rounded-lg border border-amber-300 px-3 py-1.5 font-medium hover:bg-amber-100 disabled:opacity-50"
+          >
+            {accountStatusesLoading ? "Loading..." : "Retry"}
+          </button>
         </div>
       )}
 
@@ -443,7 +655,7 @@ function Employees() {
                 Status
               </th>
               <th className="text-left px-6 py-4 text-sm font-semibold text-slate-600">
-                Performance
+                Account
               </th>
               <th className="text-right px-6 py-4 text-sm font-semibold text-slate-600">
                 Action
@@ -501,8 +713,18 @@ function Employees() {
                     </span>
                   </td>
 
-                  <td className="px-6 py-4 text-sm font-medium text-slate-700">
-                    {employee.performance}%
+                  <td className="px-6 py-4">
+                    <button
+                      type="button"
+                      onClick={() => setAccountManagementEmployee(employee)}
+                      disabled={
+                        accountStatusesLoading || Boolean(accountStatusError)
+                      }
+                      title="Open account management"
+                      className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition hover:ring-2 hover:ring-offset-1 hover:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 ${getAccountStatusClasses(getAccountStatus(employee.id))}`}
+                    >
+                      {getAccountStatus(employee.id)}
+                    </button>
                   </td>
 
                   <td className="px-6 py-4 text-right">
@@ -536,6 +758,121 @@ function Employees() {
         </table>
       </div>
 
+      {/* Account Management Modal */}
+      {accountManagementEmployee && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800">
+                  Employee Account
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Manage login access for this employee
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAccountManagementEmployee(null)}
+                disabled={accountActionEmployeeId !== null}
+                className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 disabled:opacity-50"
+                aria-label="Close account management"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-5">
+                <p className="font-semibold text-slate-800">
+                  {accountManagementEmployee.name}
+                </p>
+                <p className="text-sm text-slate-500 mt-1">
+                  {accountManagementEmployee.email ||
+                    "No email address provided"}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm text-slate-500 mb-2">
+                  Current account status
+                </p>
+                <span
+                  className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${getAccountStatusClasses(getAccountStatus(accountManagementEmployee.id))}`}
+                >
+                  {getAccountStatus(accountManagementEmployee.id)}
+                </span>
+                <p className="text-sm text-slate-600 mt-3 leading-relaxed">
+                  {getAccountStatus(accountManagementEmployee.id) ===
+                  "No Account"
+                    ? "This employee does not have a login account yet. Create one to send a secure verification email to their registered email address."
+                    : getAccountStatus(accountManagementEmployee.id) ===
+                        "Verification Pending"
+                      ? "The employee has an account but has not completed email verification. You can send the verification email again."
+                      : getAccountStatus(accountManagementEmployee.id) ===
+                          "Verification Expired"
+                        ? "The verification link has expired. Send a new verification email to continue."
+                        : getAccountStatus(accountManagementEmployee.id) ===
+                            "Password Setup Pending"
+                          ? "Email verification is complete, but the employee has not set a password yet. You can resend the password-setup email."
+                          : getAccountStatus(accountManagementEmployee.id) ===
+                              "Password Setup Expired"
+                            ? "The password-setup link has expired. Send a new password-setup email."
+                            : getAccountStatus(accountManagementEmployee.id) ===
+                                "Active"
+                              ? "This employee's login account is active. No action is currently required."
+                              : getAccountStatus(
+                                    accountManagementEmployee.id,
+                                  ) === "Access Disabled"
+                                ? "This employee's login access is disabled. No account-creation email can be sent in this state."
+                                : "Account status is currently unavailable. Please try again after the status check completes."}
+                </p>
+              </div>
+
+              {getAccountActionLabel(
+                getAccountStatus(accountManagementEmployee.id),
+              ) && (
+                <button
+                  type="button"
+                  onClick={() => handleAccountAction(accountManagementEmployee)}
+                  disabled={
+                    accountActionEmployeeId !== null ||
+                    accountStatusesLoading ||
+                    Boolean(accountStatusError) ||
+                    !accountManagementEmployee.email?.trim()
+                  }
+                  className="w-full mt-5 px-4 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {accountActionEmployeeId === accountManagementEmployee.id
+                    ? "Sending email..."
+                    : getAccountActionLabel(
+                        getAccountStatus(accountManagementEmployee.id),
+                      )}
+                </button>
+              )}
+
+              {!accountManagementEmployee.email?.trim() && (
+                <p className="text-sm text-amber-700 mt-3">
+                  Add an email address to this employee record before creating
+                  or sending account emails.
+                </p>
+              )}
+
+              <div className="flex justify-end mt-5">
+                <button
+                  type="button"
+                  onClick={() => setAccountManagementEmployee(null)}
+                  disabled={accountActionEmployeeId !== null}
+                  className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Employee Profile Modal */}
       {selectedEmployee && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -546,7 +883,7 @@ function Employees() {
                   Employee Profile
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Employee details and performance overview
+                  Employee details and work overview
                 </p>
               </div>
               <button
@@ -610,28 +947,14 @@ function Employees() {
                     {selectedEmployee.status}
                   </span>
                 </div>
-              </div>
 
-              <div className="border border-slate-200 rounded-xl p-5 mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-slate-800">
-                      Overall Performance
-                    </h3>
-                    <p className="text-sm text-slate-500">
-                      Current performance score
-                    </p>
-                  </div>
-                  <span className="text-2xl font-bold text-blue-600">
-                    {selectedEmployee.performance}%
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-sm text-slate-500">Login Account</p>
+                  <span
+                    className={`inline-block mt-2 rounded-full px-3 py-1 text-xs font-medium ${getAccountStatusClasses(getAccountStatus(selectedEmployee.id))}`}
+                  >
+                    {getAccountStatus(selectedEmployee.id)}
                   </span>
-                </div>
-
-                <div className="w-full bg-slate-200 rounded-full h-3">
-                  <div
-                    className="bg-blue-600 h-3 rounded-full"
-                    style={{ width: `${selectedEmployee.performance}%` }}
-                  />
                 </div>
               </div>
 
@@ -801,26 +1124,28 @@ function Employees() {
                     <option value="On Leave">On Leave</option>
                   </select>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Performance (%)
-                  </label>
+              <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
                   <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={newEmployee.performance}
-                    onChange={(e) =>
-                      setNewEmployee({
-                        ...newEmployee,
-                        performance:
-                          e.target.value === "" ? "" : Number(e.target.value),
-                      })
-                    }
-                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                    type="checkbox"
+                    checked={createLoginAccount}
+                    onChange={(e) => setCreateLoginAccount(e.target.checked)}
+                    disabled={savingEmployee}
+                    className="mt-1 h-4 w-4 accent-blue-600"
                   />
-                </div>
+
+                  <span>
+                    <span className="block text-sm font-semibold text-slate-800">
+                      Create login account and send verification email
+                    </span>
+                    <span className="block text-xs text-slate-600 mt-1">
+                      The employee will receive an email to verify their address
+                      and set up their password.
+                    </span>
+                  </span>
+                </label>
               </div>
 
               <div className="flex justify-end gap-3 mt-7">
@@ -985,26 +1310,6 @@ function Employees() {
                     <option value="Inactive">Inactive</option>
                     <option value="On Leave">On Leave</option>
                   </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Performance (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={editingEmployee.performance}
-                    onChange={(e) =>
-                      setEditingEmployee({
-                        ...editingEmployee,
-                        performance:
-                          e.target.value === "" ? "" : Number(e.target.value),
-                      })
-                    }
-                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-                  />
                 </div>
               </div>
 

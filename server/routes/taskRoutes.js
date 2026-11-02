@@ -1,12 +1,42 @@
+
 import express from "express";
 import Task from "../models/Task.js";
 import User from "../models/User.js";
+import Project from "../models/Project.js";
+import Employee from "../models/Employee.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import { authorizeRole } from "../middleware/authorizeRole.js";
-import Employee from "../models/Employee.js";
-
 
 const router = express.Router();
+
+
+// Shared validation for project, department, and employee assignment.
+const validateTaskAssignment = async (projectName, departmentName, employeeName) => {
+    const project = await Project.findOne({
+        name: projectName.trim(),
+        department: departmentName.trim(),
+    });
+
+    if (!project) {
+        return {
+            error: "The selected project does not exist or does not belong to the selected department.",
+        };
+    }
+
+    const employee = await Employee.findOne({
+        name: employeeName.trim(),
+        department: project.department,
+    });
+
+    if (!employee) {
+        return {
+            error: "The assigned employee does not belong to the selected project's department.",
+        };
+    }
+
+    return { employee };
+};
+
 
 // GET /api/tasks/my-tasks
 // Employees can only view tasks assigned to their linked Employee record.
@@ -48,8 +78,8 @@ router.get(
 );
 
 
-
-// GET /api/tasks — only authenticated Managers can view all tasks
+// GET /api/tasks
+// Only authenticated Managers can view all tasks.
 router.get(
     "/",
     authenticateToken,
@@ -87,7 +117,6 @@ router.patch(
         try {
             const { progress } = req.body;
 
-            // Validate progress.
             if (
                 progress === undefined ||
                 typeof progress !== "number" ||
@@ -101,7 +130,6 @@ router.patch(
                 });
             }
 
-            // Find the logged-in employee's linked record.
             const user = await User.findById(req.user.userId).select(
                 "employee role"
             );
@@ -113,7 +141,6 @@ router.patch(
                 });
             }
 
-            // Find only a task assigned to this employee.
             const task = await Task.findOne({
                 _id: req.params.id,
                 assignedTo: user.employee,
@@ -126,8 +153,6 @@ router.patch(
                 });
             }
 
-            // Update only progress.
-            // The Task model automatically synchronizes status.
             task.progress = progress;
 
             await task.save();
@@ -156,7 +181,8 @@ router.patch(
 );
 
 
-// POST /api/tasks — Managers can create tasks
+// POST /api/tasks
+// Managers can create tasks.
 router.post(
     "/",
     authenticateToken,
@@ -179,7 +205,7 @@ router.post(
                 !description?.trim() ||
                 !project?.trim() ||
                 !department?.trim() ||
-                !assignedTo ||
+                !assignedTo?.trim() ||
                 !dueDate
             ) {
                 return res.status(400).json({
@@ -188,15 +214,17 @@ router.post(
                 });
             }
 
-            // Find the employee by their name from the existing form.
-            const employee = await Employee.findOne({
-                name: assignedTo.trim(),
-            });
+            // Verify project, department, and employee assignment.
+            const assignment = await validateTaskAssignment(
+                project,
+                department,
+                assignedTo
+            );
 
-            if (!employee) {
+            if (assignment.error) {
                 return res.status(400).json({
                     success: false,
-                    message: "The assigned employee was not found.",
+                    message: assignment.error,
                 });
             }
 
@@ -205,7 +233,7 @@ router.post(
                 description: description.trim(),
                 project: project.trim(),
                 department: department.trim(),
-                assignedTo: employee._id,
+                assignedTo: assignment.employee._id,
                 priority,
                 dueDate,
                 progress: progress ?? 0,
@@ -240,8 +268,8 @@ router.post(
 );
 
 
-
-// PUT /api/tasks/:id — Managers can update existing tasks
+// PUT /api/tasks/:id
+// Managers can update existing tasks.
 router.put(
     "/:id",
     authenticateToken,
@@ -264,7 +292,7 @@ router.put(
                 !description?.trim() ||
                 !project?.trim() ||
                 !department?.trim() ||
-                !assignedTo ||
+                !assignedTo?.trim() ||
                 !dueDate
             ) {
                 return res.status(400).json({
@@ -273,14 +301,17 @@ router.put(
                 });
             }
 
-            const employee = await Employee.findOne({
-                name: assignedTo.trim(),
-            });
+            // Verify project, department, and employee assignment.
+            const assignment = await validateTaskAssignment(
+                project,
+                department,
+                assignedTo
+            );
 
-            if (!employee) {
+            if (assignment.error) {
                 return res.status(400).json({
                     success: false,
-                    message: "The assigned employee was not found.",
+                    message: assignment.error,
                 });
             }
 
@@ -297,7 +328,7 @@ router.put(
             task.description = description.trim();
             task.project = project.trim();
             task.department = department.trim();
-            task.assignedTo = employee._id;
+            task.assignedTo = assignment.employee._id;
             task.priority = priority;
             task.dueDate = dueDate;
             task.progress = progress ?? 0;
@@ -333,8 +364,8 @@ router.put(
 );
 
 
-
-// DELETE /api/tasks/:id — Managers can delete tasks
+// DELETE /api/tasks/:id
+// Managers can delete tasks.
 router.delete(
     "/:id",
     authenticateToken,

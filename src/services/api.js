@@ -158,6 +158,8 @@ export async function getMyTasks() {
         status: task.status,
         dueDate: task.dueDate?.split("T")[0] || "",
         progress: task.progress,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
     }));
 }
 
@@ -205,7 +207,11 @@ export async function getTasks() {
         description: task.description,
         project: task.project,
         department: task.department,
+
+        // Preserve both employee ID and name.
+        assignedToId: task.assignedTo?._id || "",
         assignedTo: task.assignedTo?.name || "",
+
         priority: task.priority,
         status: task.status,
         dueDate: task.dueDate?.split("T")[0] || "",
@@ -294,6 +300,8 @@ export async function getGoals() {
         deadline: goal.deadline
             ? goal.deadline.split("T")[0]
             : "",
+        createdAt: goal.createdAt,
+        updatedAt: goal.updatedAt,
     }));
 }
 
@@ -539,6 +547,8 @@ export async function getProjects() {
             ? project.dueDate.split("T")[0]
             : "",
         progress: project.progress,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
     }));
 }
 
@@ -734,6 +744,8 @@ function mapLeaveRequest(leave) {
         reason: leave.reason || "",
         status: leave.status,
         appliedDate: leave.appliedDate,
+        createdAt: leave.createdAt,
+        updatedAt: leave.updatedAt,
     };
 }
 
@@ -983,6 +995,95 @@ export async function deletePerformanceReview(reviewId) {
 
     if (!response.ok || !result.success) {
         throw new Error(result.message || "Failed to delete performance review.");
+    }
+
+    return result;
+}
+
+// ===============================
+// EMPLOYEE ACCOUNT MANAGEMENT API
+// ===============================
+
+// Get account statuses for all employees.
+export async function getEmployeeAccountStatuses() {
+    const response = await fetch(
+        `${API_BASE_URL}/api/employee-accounts/status`,
+        {
+            headers: getAuthHeaders(),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(
+            result.message || "Failed to fetch employee account statuses."
+        );
+    }
+
+    return result.data;
+}
+
+// Send an initial account invitation to an employee.
+export async function inviteEmployeeAccount(employeeId, email) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/employee-accounts/invite`,
+        {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...getAuthHeaders(),
+            },
+            body: JSON.stringify({ employeeId, email }),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to send employee invitation.");
+    }
+
+    return result;
+}
+
+// Resend email verification to an employee.
+export async function resendEmployeeVerification(employeeId) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/employee-accounts/${employeeId}/resend-verification`,
+        {
+            method: "POST",
+            headers: getAuthHeaders(),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(
+            result.message || "Failed to resend verification email."
+        );
+    }
+
+    return result;
+}
+
+// Resend password setup email to an employee.
+export async function resendEmployeePasswordSetup(employeeId) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/employee-accounts/${employeeId}/resend-password-setup`,
+        {
+            method: "POST",
+            headers: getAuthHeaders(),
+        }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(
+            result.message || "Failed to resend password setup email."
+        );
     }
 
     return result;

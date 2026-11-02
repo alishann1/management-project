@@ -8,15 +8,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const data = [
-  { employee: "Ali", score: 92 },
-  { employee: "Sara", score: 88 },
-  { employee: "Ahmed", score: 84 },
-  { employee: "Fatima", score: 79 },
-  { employee: "Usman", score: 74 },
-];
-
-function EmployeePerformanceChart() {
+function EmployeePerformanceChart({ data = [] }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
       <div className="mb-6">
@@ -25,24 +17,32 @@ function EmployeePerformanceChart() {
         </h2>
 
         <p className="text-sm text-slate-500 mt-1">
-          Overall performance scores
+          Average performance scores from employee reviews
         </p>
       </div>
 
       <div className="h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" />
+        {data.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" />
 
-            <XAxis dataKey="employee" />
+              <XAxis dataKey="employee" />
 
-            <YAxis domain={[0, 100]} allowDecimals={false} />
+              <YAxis domain={[0, 100]} allowDecimals={false} />
 
-            <Tooltip />
+              <Tooltip
+                formatter={(value) => [`${value}/100`, "Average Score"]}
+              />
 
-            <Bar dataKey="score" fill="#16a34a" radius={[6, 6, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+              <Bar dataKey="score" fill="#16a34a" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+            No performance review data available
+          </div>
+        )}
       </div>
     </div>
   );

@@ -536,11 +536,6 @@ function Leave() {
         </div>
       </div>
 
-      <p className="text-xs text-slate-400">
-        Leave requests are saved in the database and remain available after
-        refreshing the page.
-      </p>
-
       {/* View Request Modal */}
       {viewingRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4">

@@ -1,3 +1,4 @@
+
 import nodemailer from "nodemailer";
 
 let transporter;
@@ -22,6 +23,14 @@ async function getEmailTransporter() {
     console.log("\x1b[32mEthereal test email service is ready.\x1b[0m");
 
     return transporter;
+}
+
+function logEmailPreview(previewUrl) {
+    if (previewUrl) {
+        console.log("\n\x1b[36mEthereal Email Preview:\x1b[0m");
+        console.log(previewUrl);
+        console.log("");
+    }
 }
 
 export async function sendVerificationEmail({ to, verificationUrl }) {
@@ -61,7 +70,12 @@ export async function sendVerificationEmail({ to, verificationUrl }) {
 
     const previewUrl = nodemailer.getTestMessageUrl(info);
 
-    return { messageId: info.messageId, previewUrl };
+    logEmailPreview(previewUrl);
+
+    return {
+        messageId: info.messageId,
+        previewUrl,
+    };
 }
 
 export async function sendPasswordSetupEmail({ to, passwordSetupUrl }) {
@@ -85,7 +99,7 @@ export async function sendPasswordSetupEmail({ to, passwordSetupUrl }) {
             "If you did not expect this email, you can ignore it.",
         ].join("\n"),
         html: `
-    < div style = "font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; line-height: 1.6;" >
+            <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; line-height: 1.6;">
                 <h2>Set up your SmartManager password</h2>
                 <p>Your email has been verified. Use the link below to choose your password.</p>
                 <p style="margin: 28px 0;">
@@ -96,11 +110,16 @@ export async function sendPasswordSetupEmail({ to, passwordSetupUrl }) {
                 </p>
                 <p>This link expires after 30 minutes and can only be used once.</p>
                 <p>If you did not expect this email, you can ignore it.</p>
-            </div >
-    `,
+            </div>
+        `,
     });
 
     const previewUrl = nodemailer.getTestMessageUrl(info);
 
-    return { messageId: info.messageId, previewUrl };
+    logEmailPreview(previewUrl);
+
+    return {
+        messageId: info.messageId,
+        previewUrl,
+    };
 }
