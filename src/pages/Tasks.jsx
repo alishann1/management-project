@@ -89,11 +89,6 @@ function Tasks() {
     ["Planning", "In Progress"].includes(project.status),
   );
 
-  // Only Active employees can receive new assignments.
-  const activeEmployees = employees.filter(
-    (employee) => employee.status === "Active",
-  );
-
   // Get employees belonging to a particular department.
   const getDepartmentEmployees = (department, currentEmployeeId = "") => {
     if (!department) return [];
@@ -103,15 +98,6 @@ function Tasks() {
         employee.department === department &&
         (employee.status === "Active" || employee.id === currentEmployeeId),
     );
-  };
-
-  const getStatusFromProgress = (progress) => {
-    const value = Number(progress);
-
-    if (value === 0) return "Pending";
-    if (value === 100) return "Completed";
-
-    return "In Progress";
   };
 
   // Update project selection in Add Task.

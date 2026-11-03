@@ -19,13 +19,14 @@ function EmployeeDashboard() {
   const [error, setError] = useState("");
 
   const userData = sessionStorage.getItem("smartmanager_user");
-  let user = null;
 
-  try {
-    user = userData ? JSON.parse(userData) : null;
-  } catch {
-    user = null;
-  }
+  const user = (() => {
+    try {
+      return userData ? JSON.parse(userData) : null;
+    } catch {
+      return null;
+    }
+  })();
 
   useEffect(() => {
     const fetchTasks = async () => {

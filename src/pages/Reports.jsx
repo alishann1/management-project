@@ -32,6 +32,7 @@ import {
   getProjects,
   getTasks,
   getGoals,
+  getPerformanceReviews,
 } from "../services/api";
 
 const TASK_COLORS = ["#2563eb", "#f59e0b", "#16a34a", "#64748b"];
@@ -82,6 +83,7 @@ function Reports() {
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [goals, setGoals] = useState([]);
+  const [performanceReviews, setPerformanceReviews] = useState([]);
 
   // Loading and error states.
   const [isLoading, setIsLoading] = useState(true);
@@ -99,14 +101,21 @@ function Reports() {
         setIsLoading(true);
         setPageError("");
 
-        const [employeeData, departmentData, projectData, taskData, goalData] =
-          await Promise.all([
-            getEmployees(),
-            getDepartments(),
-            getProjects(),
-            getTasks(),
-            getGoals(),
-          ]);
+        const [
+          employeeData,
+          departmentData,
+          projectData,
+          taskData,
+          goalData,
+          performanceData,
+        ] = await Promise.all([
+          getEmployees(),
+          getDepartments(),
+          getProjects(),
+          getTasks(),
+          getGoals(),
+          getPerformanceReviews(),
+        ]);
 
         if (!isMounted) return;
 
@@ -115,6 +124,7 @@ function Reports() {
         setProjects(projectData);
         setTasks(taskData);
         setGoals(goalData);
+        setPerformanceReviews(performanceData);
       } catch (error) {
         if (isMounted) {
           setPageError(
@@ -179,15 +189,63 @@ function Reports() {
     [goals, selectedDepartment],
   );
 
-  // Average employee performance.
-  const averagePerformance = filteredEmployees.length
+  // Filter performance reviews by department.
+  const filteredPerformanceReviews = useMemo(
+    () =>
+      performanceReviews.filter(
+        (review) =>
+          selectedDepartment === "All" ||
+          review.department === selectedDepartment,
+      ),
+    [performanceReviews, selectedDepartment],
+  );
+
+  // Calculate average performance from actual review scores.
+  const averagePerformance = filteredPerformanceReviews.length
     ? Math.round(
-        filteredEmployees.reduce(
-          (total, employee) => total + Number(employee.performance || 0),
+        filteredPerformanceReviews.reduce(
+          (total, review) => total + Number(review.score || 0),
           0,
-        ) / filteredEmployees.length,
+        ) / filteredPerformanceReviews.length,
       )
     : 0;
+
+  // Calculate average performance for each employee.
+  const employeePerformanceData = useMemo(() => {
+    const reviewsByEmployee = new Map();
+
+    filteredPerformanceReviews.forEach((review) => {
+      if (!review.employeeId) return;
+
+      const current = reviewsByEmployee.get(review.employeeId) || {
+        total: 0,
+        count: 0,
+      };
+
+      current.total += Number(review.score || 0);
+      current.count += 1;
+
+      reviewsByEmployee.set(review.employeeId, current);
+    });
+
+    return filteredEmployees
+      .map((employee) => {
+        const reviewData = reviewsByEmployee.get(employee.id);
+
+        if (!reviewData || reviewData.count === 0) {
+          return null;
+        }
+
+        return {
+          id: employee.id,
+          name: employee.name,
+          performance: Math.round(reviewData.total / reviewData.count),
+          reviewCount: reviewData.count,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.performance - a.performance);
+  }, [filteredEmployees, filteredPerformanceReviews]);
 
   // Completed records.
   const completedProjects = filteredProjects.filter(
@@ -224,7 +282,7 @@ function Reports() {
       .filter((item) => item.value > 0);
   }, [filteredTasks]);
 
-  // Department performance chart.
+  // Department performance chart using Performance Reviews.
   const departmentPerformanceData = useMemo(
     () =>
       departments
@@ -234,27 +292,27 @@ function Reports() {
             department.name === selectedDepartment,
         )
         .map((department) => {
-          const departmentEmployees = employees.filter(
-            (employee) => employee.department === department.name,
+          const departmentReviews = performanceReviews.filter(
+            (review) => review.department === department.name,
           );
 
-          const average = departmentEmployees.length
+          const average = departmentReviews.length
             ? Math.round(
-                departmentEmployees.reduce(
-                  (total, employee) =>
-                    total + Number(employee.performance || 0),
+                departmentReviews.reduce(
+                  (total, review) => total + Number(review.score || 0),
                   0,
-                ) / departmentEmployees.length,
+                ) / departmentReviews.length,
               )
-            : 0;
+            : null;
 
           return {
             name: department.name,
             performance: average,
-            employees: departmentEmployees.length,
+            reviews: departmentReviews.length,
           };
-        }),
-    [departments, employees, selectedDepartment],
+        })
+        .filter((department) => department.performance !== null),
+    [departments, performanceReviews, selectedDepartment],
   );
 
   // Project progress chart.
@@ -264,18 +322,8 @@ function Reports() {
     progress: Number(project.progress || 0),
   }));
 
-  // Employee performance chart.
-  const employeePerformanceData = [...filteredEmployees]
-    .sort((a, b) => Number(b.performance || 0) - Number(a.performance || 0))
-    .map((employee) => ({
-      name: employee.name,
-      performance: Number(employee.performance || 0),
-    }));
-
-  // Top performer.
-  const topPerformer = [...filteredEmployees].sort(
-    (a, b) => Number(b.performance || 0) - Number(a.performance || 0),
-  )[0];
+  // Top performer based on average review score.
+  const topPerformer = employeePerformanceData[0] || null;
 
   // Completion rates.
   const taskCompletionRate = filteredTasks.length
@@ -403,7 +451,11 @@ function Reports() {
                 Average Employee Performance
               </p>
               <p className="text-2xl font-bold text-slate-800">
-                {isLoading ? "—" : `${averagePerformance}%`}
+                {isLoading
+                  ? "—"
+                  : filteredPerformanceReviews.length
+                    ? `${averagePerformance}%`
+                    : "No reviews"}
               </p>
             </div>
           </div>
@@ -411,11 +463,14 @@ function Reports() {
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
               className="h-full rounded-full bg-blue-600"
-              style={{
-                width: `${averagePerformance}%`,
-              }}
+              style={{ width: `${averagePerformance}%` }}
             />
           </div>
+
+          <p className="mt-2 text-xs text-slate-500">
+            Based on {filteredPerformanceReviews.length} performance review
+            {filteredPerformanceReviews.length === 1 ? "" : "s"}.
+          </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -435,9 +490,7 @@ function Reports() {
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
               className="h-full rounded-full bg-emerald-600"
-              style={{
-                width: `${taskCompletionRate}%`,
-              }}
+              style={{ width: `${taskCompletionRate}%` }}
             />
           </div>
         </div>
@@ -459,9 +512,7 @@ function Reports() {
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
               className="h-full rounded-full bg-amber-500"
-              style={{
-                width: `${goalCompletionRate}%`,
-              }}
+              style={{ width: `${goalCompletionRate}%` }}
             />
           </div>
         </div>
@@ -471,7 +522,7 @@ function Reports() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ChartCard
           title="Department Performance"
-          description="Average employee performance score by department."
+          description="Average performance review score by department."
         >
           {departmentPerformanceData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
@@ -505,7 +556,7 @@ function Reports() {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <EmptyChart />
+            <EmptyChart message="No performance reviews available for this department." />
           )}
         </ChartCard>
 
@@ -593,7 +644,7 @@ function Reports() {
       {/* Employee performance */}
       <ChartCard
         title="Employee Performance"
-        description="Employee performance scores, ordered from highest to lowest."
+        description="Average performance review scores, ordered from highest to lowest."
       >
         {employeePerformanceData.length > 0 ? (
           <ResponsiveContainer
@@ -623,7 +674,12 @@ function Reports() {
                 width={100}
                 tick={{ fontSize: 12 }}
               />
-              <Tooltip formatter={(value) => [`${value}%`, "Performance"]} />
+              <Tooltip
+                formatter={(value, name, props) => [
+                  `${value}%`,
+                  `Average score (${props.payload.reviewCount} reviews)`,
+                ]}
+              />
               <Bar
                 dataKey="performance"
                 name="Performance"
@@ -634,7 +690,7 @@ function Reports() {
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <EmptyChart message="No employees available for this department." />
+          <EmptyChart message="No employee performance reviews available for this department." />
         )}
       </ChartCard>
 
@@ -663,12 +719,16 @@ function Reports() {
                   {topPerformer.name}
                 </p>
                 <p className="mt-1 text-sm text-emerald-600">
-                  {topPerformer.performance}% performance
+                  {topPerformer.performance}% average performance
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Based on {topPerformer.reviewCount} review
+                  {topPerformer.reviewCount === 1 ? "" : "s"}.
                 </p>
               </>
             ) : (
               <p className="mt-1 text-sm text-slate-600">
-                No employee data available.
+                No performance reviews available.
               </p>
             )}
           </div>
@@ -712,26 +772,26 @@ function Reports() {
 
       {/* Print styling */}
       <style>{`
-                @media print {
-                    body {
-                        background: white !important;
-                    }
+        @media print {
+          body {
+            background: white !important;
+          }
 
-                    aside,
-                    nav {
-                        display: none !important;
-                    }
+          aside,
+          nav {
+            display: none !important;
+          }
 
-                    main {
-                        padding: 12px !important;
-                    }
+          main {
+            padding: 12px !important;
+          }
 
-                    section,
-                    .rounded-2xl {
-                        break-inside: avoid;
-                    }
-                }
-            `}</style>
+          section,
+          .rounded-2xl {
+            break-inside: avoid;
+          }
+        }
+      `}</style>
     </div>
   );
 }

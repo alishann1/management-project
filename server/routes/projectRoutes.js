@@ -30,7 +30,7 @@ router.get(
                 success: true,
                 data: projects,
             });
-        } catch (error) {
+        } catch {
             return res.status(500).json({
                 success: false,
                 message: "Failed to fetch projects.",

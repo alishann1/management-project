@@ -6,7 +6,6 @@ import {
   LoaderCircle,
   Save,
   CheckCircle2,
-  Trophy,
   Flag,
 } from "lucide-react";
 
@@ -51,8 +50,10 @@ function MyGoals() {
 
   // Clear remaining timers when leaving the page.
   useEffect(() => {
+    const timers = successTimers.current;
+
     return () => {
-      Object.values(successTimers.current).forEach((timer) => {
+      Object.values(timers).forEach((timer) => {
         clearTimeout(timer);
       });
     };

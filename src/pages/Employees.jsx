@@ -138,7 +138,11 @@ function Employees() {
   };
 
   useEffect(() => {
-    loadAccountStatuses();
+    const timerId = setTimeout(() => {
+      loadAccountStatuses();
+    }, 0);
+
+    return () => clearTimeout(timerId);
   }, []);
 
   // Load department options from MongoDB.

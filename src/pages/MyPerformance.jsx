@@ -6,8 +6,6 @@ import {
   Eye,
   X,
   AlertTriangle,
-  CalendarDays,
-  Target,
 } from "lucide-react";
 
 import { getMyPerformance } from "../services/api";

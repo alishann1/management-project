@@ -69,7 +69,7 @@ function Sidebar({ role }) {
   try {
     user = userData ? JSON.parse(userData) : null;
   } catch {
-    user = null;
+    // Keep user as null if stored data is invalid.
   }
 
   const displayName = user?.name || (isEmployee ? "Employee" : "Admin Manager");

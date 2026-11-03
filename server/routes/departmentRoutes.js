@@ -36,7 +36,7 @@ router.get(
                 success: true,
                 data: departments,
             });
-        } catch (error) {
+        } catch {
             return res.status(500).json({
                 success: false,
                 message: "Failed to fetch departments.",

@@ -58,20 +58,22 @@ function ManagerSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState(value || "");
 
-  useEffect(() => {
-    setSearch(value || "");
-  }, [value]);
+  const currentValue = value || "";
 
-  const matchingEmployee = findMatchingEmployee(employees, search);
+  const displayedSearch =
+    search === "" && currentValue !== "" ? currentValue : search;
+
+  const matchingEmployee = findMatchingEmployee(employees, displayedSearch);
 
   const filteredEmployees = employees.filter((employee) =>
-    employee.name?.toLowerCase().includes(search.trim().toLowerCase()),
+    employee.name?.toLowerCase().includes(displayedSearch.trim().toLowerCase()),
   );
 
-  const hasTypedName = search.trim().length > 0;
+  const hasTypedName = displayedSearch.trim().length > 0;
   const isValidSelection =
     matchingEmployee !== null &&
-    matchingEmployee.name.trim().toLowerCase() === search.trim().toLowerCase();
+    matchingEmployee.name.trim().toLowerCase() ===
+      displayedSearch.trim().toLowerCase();
 
   const handleInputChange = (e) => {
     const typedValue = e.target.value;
@@ -101,7 +103,7 @@ function ManagerSelect({
           required
           autoComplete="off"
           disabled={disabled || loading || Boolean(error)}
-          value={search}
+          value={displayedSearch}
           onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
           onBlur={() => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Clock3,
@@ -65,7 +65,7 @@ function Attendance() {
   const [error, setError] = useState("");
 
   // Load employees and initialize attendance for the selected date.
-  const loadAttendance = async () => {
+  const loadAttendance = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -82,11 +82,13 @@ function Attendance() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate]);
 
   useEffect(() => {
+    // This effect intentionally starts an asynchronous data-loading operation.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAttendance();
-  }, [selectedDate]);
+  }, [loadAttendance]);
 
   // Get available departments from employee data.
   const departments = useMemo(

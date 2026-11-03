@@ -80,7 +80,11 @@ function Projects() {
   };
 
   useEffect(() => {
-    loadPageData();
+    const timerId = setTimeout(() => {
+      loadPageData();
+    }, 0);
+
+    return () => clearTimeout(timerId);
   }, []);
 
   // Return employees belonging to the selected department.

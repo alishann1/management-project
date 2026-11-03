@@ -5,17 +5,33 @@ const API_BASE_URL = "http://localhost:5000/api";
 
 function VerifyEmail() {
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState("loading");
-  const [message, setMessage] = useState("Verifying your email address...");
+  const token = searchParams.get("token");
+
+  const [verification, setVerification] = useState(() => ({
+    token,
+    status: token ? "loading" : "error",
+    message: token
+      ? "Verifying your email address..."
+      : "The verification link is missing its token.",
+  }));
+
+  // Derive the displayed state when the URL token changes.
+  const status =
+    verification.token === token
+      ? verification.status
+      : token
+        ? "loading"
+        : "error";
+
+  const message =
+    verification.token === token
+      ? verification.message
+      : token
+        ? "Verifying your email address..."
+        : "The verification link is missing its token.";
 
   useEffect(() => {
-    const token = searchParams.get("token");
-
-    if (!token) {
-      setStatus("error");
-      setMessage("The verification link is missing its token.");
-      return;
-    }
+    if (!token) return;
 
     let cancelled = false;
 
@@ -30,17 +46,26 @@ function VerifyEmail() {
         if (cancelled) return;
 
         if (!response.ok) {
-          setStatus("error");
-          setMessage(result.message || "Email verification failed.");
+          setVerification({
+            token,
+            status: "error",
+            message: result.message || "Email verification failed.",
+          });
           return;
         }
 
-        setStatus("success");
-        setMessage(result.message);
+        setVerification({
+          token,
+          status: "success",
+          message: result.message,
+        });
       } catch {
         if (!cancelled) {
-          setStatus("error");
-          setMessage("Unable to contact the server. Please try again later.");
+          setVerification({
+            token,
+            status: "error",
+            message: "Unable to contact the server. Please try again later.",
+          });
         }
       }
     }
@@ -50,7 +75,7 @@ function VerifyEmail() {
     return () => {
       cancelled = true;
     };
-  }, [searchParams]);
+  }, [token]);
 
   return (
     <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6">

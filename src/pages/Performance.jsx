@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Users,
   TrendingUp,
   Award,
   ClipboardCheck,

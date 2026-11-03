@@ -65,7 +65,7 @@ router.get(
                 success: true,
                 data: reviews,
             });
-        } catch (error) {
+        } catch {
             return res.status(500).json({
                 success: false,
                 message: "Failed to fetch performance reviews.",

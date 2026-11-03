@@ -50,8 +50,10 @@ function MyTasks() {
 
   // Clear any remaining timers when leaving the page.
   useEffect(() => {
+    const timers = successTimers.current;
+
     return () => {
-      Object.values(successTimers.current).forEach((timer) => {
+      Object.values(timers).forEach((timer) => {
         clearTimeout(timer);
       });
     };

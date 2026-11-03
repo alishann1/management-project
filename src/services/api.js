@@ -49,7 +49,6 @@ export async function getEmployees() {
         department: employee.department,
         position: employee.role,
         status: employee.status,
-        performance: employee.performance,
     }));
 }
 
@@ -78,7 +77,6 @@ export async function createEmployee(employeeData) {
         department: employee.department,
         position: employee.role,
         status: employee.status,
-        performance: employee.performance,
     };
 }
 
@@ -110,7 +108,6 @@ export async function updateEmployee(employeeId, employeeData) {
         department: employee.department,
         position: employee.role,
         status: employee.status,
-        performance: employee.performance,
     };
 }
 
